@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.design.widget.CoordinatorLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        tools:context=".StoryActivity">
+    <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_margin="@dimen/activity_margin"
+            android:layout_height="match_parent">
+        <TextView
+                android:text="TextView"
+                android:layout_width="match_parent"
+                android:layout_margin="@dimen/activity_margin"
+                android:layout_height="wrap_content"
+                android:id="@+id/textViewTitle"/>
+        <TextView
+                android:text="TextView"
+                android:layout_width="match_parent"
+                android:layout_margin="@dimen/activity_margin"
+                android:layout_height="wrap_content"
+                android:id="@+id/textViewName"/>
+        <TextView
+                android:text="TextView"
+                android:layout_width="match_parent"
+                android:layout_margin="@dimen/activity_margin"
+                android:layout_height="wrap_content"
+                android:id="@+id/textViewDescription"/>
+    </LinearLayout>
+</android.support.design.widget.CoordinatorLayout>
