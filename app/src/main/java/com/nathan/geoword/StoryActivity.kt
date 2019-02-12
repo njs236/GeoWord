@@ -1,32 +1,45 @@
 package com.nathan.geoword
 
+import android.Manifest.permission.CAMERA
+import android.Manifest.permission.WRITE_EXTERNAL_STORAGE
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.DialogInterface
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.PackageManager.PERMISSION_GRANTED
+import android.database.Cursor
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
 import android.support.design.widget.FloatingActionButton
+import android.support.v4.app.ActivityCompat
+import android.support.v4.content.ContextCompat
+import android.support.v4.content.FileProvider
 import android.support.v7.widget.Toolbar
 import android.util.Log
-import android.view.Menu
-import android.view.MenuInflater
-import android.view.MenuItem
-import android.view.View
+import android.view.*
 import android.widget.*
+import com.bumptech.glide.Glide
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.tasks.OnFailureListener
 import com.google.android.gms.tasks.OnSuccessListener
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.firestore.DocumentReference
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.GeoPoint
+import com.google.firebase.firestore.*
+import com.google.firebase.storage.FirebaseStorage
 import java.io.File
+import java.io.FileInputStream
+import java.io.IOException
+import java.sql.Time
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.collections.ArrayList
 
 // TODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -62,6 +75,7 @@ class StoryActivity : AppCompatActivity() {
     private var fab: FloatingActionButton? = null
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
+    private lateinit var storage: FirebaseStorage
 
     enum class ActivityState (val number: Int){
         new(1),
@@ -128,6 +142,7 @@ class StoryActivity : AppCompatActivity() {
             title = findViewById(R.id.textViewTitle)
             name = findViewById(R.id.textViewName)
             desc = findViewById(R.id.textViewDescription)
+            ll_imageGallery = findViewById(R.id.ll_imageGallery)
 
             title?.text = storedTitle
             name?.text = storedPerson
@@ -156,6 +171,15 @@ class StoryActivity : AppCompatActivity() {
             updateUser(auth.currentUser)
             // Access a Cloud Firestore instance from your Activity
             db = FirebaseFirestore.getInstance()
+            storage = FirebaseStorage.getInstance()
+            if (state == ActivityState.edit || state == ActivityState.display)
+                db.collection("users")
+                    .document(auth.currentUser!!.uid)
+                    .collection("notes")
+                    .document(docref)
+                    .collection("images").orderBy("cr_date", Query.Direction.ASCENDING).get()
+                    .addOnSuccessListener(retrieveImageDataForNoteSuccessListener())
+                    .addOnFailureListener(retrieveImageDataForNoteFailureListener())
 
 
 
@@ -170,19 +194,123 @@ class StoryActivity : AppCompatActivity() {
 
     }
 
-    val REQUEST_IMAGE_CAPTURE = 1
+    fun retrieveImageDataForNoteSuccessListener(): OnSuccessListener<QuerySnapshot> = OnSuccessListener { result->
+        for (document in result) {
+            val imageName = document.get("name") as String
+            displayImageInGallery(imageName)
+
+        }
+    }
+
+    fun retrieveImageDataForNoteFailureListener(): OnFailureListener = OnFailureListener { e->
+        Log.w(TAG, "retrieving data for imageGallery failed", e)
+    }
+
+    val REQUEST_IMAGE_CAPTURE = 1001
     var IMAGE_NAME= ""
-    val LIBRARY_REQUEST = 1001
+    val LIBRARY_REQUEST = 1002
+    val REQUEST_STORAGE_CAMERA = 1003
+    val REQUEST_STORAGE_SELECT = 1004
 
     private fun dispatchTakePictureIntent() {
         Intent(MediaStore.ACTION_IMAGE_CAPTURE).also { takePictureIntent ->
+            // Ensure that there's a camera activity to handle the intent
             takePictureIntent.resolveActivity(packageManager)?.also {
-                startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
+                // Create the File where the photo should go
+                val photoFile: File? = try {
+                    createImageFile()
+                } catch (ex: IOException) {
+                    // Error occurred while creating the File
+
+                    null
+                }
+                // Continue only if the File was successfully created
+                photoFile?.also {
+                    val photoURI: Uri = FileProvider.getUriForFile(
+                        this,
+                        "com.nathan.geoword.fileprovider",
+                        it
+                    )
+                    takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
+                    startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
+                }
             }
         }
     }
 
+    private fun dispatchSelectImageIntent() {
+        IMAGE_NAME = System.currentTimeMillis().toString() + ".jpg"
+
+        val intent = Intent(
+            Intent.ACTION_PICK,
+            android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        )
+        intent.type = "image/*"
+        startActivityForResult(
+            Intent.createChooser(intent, getString(R.string.select_image)),
+            LIBRARY_REQUEST
+        )
+    }
+
+    var mCurrentPhotoPath: String = ""
+    var redundantImageName: String = ""
+
+    @Throws(IOException::class)
+    private fun createImageFile(): File {
+        // Create an image file name
+        val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
+        val storageDir: File = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        redundantImageName = "JPEG_${timeStamp}_.jpg"
+        return File.createTempFile(
+            "JPEG_${timeStamp}_", /* prefix */
+            ".jpg", /* suffix */
+            storageDir /* directory */
+        ).apply {
+            // Save a file: path for use with ACTION_VIEW intents
+            mCurrentPhotoPath = absolutePath
+        }
+    }
+
+    private fun generateImageName() : String {
+        val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
+        return "JPEG_${timeStamp}_.jpg"
+    }
+
+    fun displayImageInGallery(imageName: String?) {
+        if (imageName != null) {
+            Log.w(TAG, "imageName: $imageName")
+            var imageView = ImageView(this@StoryActivity)
+            imageView.setBackground(getDrawable(R.drawable.dotted))
+            var params = LinearLayout.LayoutParams(150, 150)
+            params.setMargins(0,0,15,0)
+            imageView.layoutParams = params
+
+            val id = View.generateViewId()
+            Log.w(TAG, "id: $id")
+            imageView.setId(id)
+            ll_imageGallery?.addView(imageView, 0)
+            val imageRef = storage.reference.child(imageName)
+            val findView = findViewById<ImageView>(id)
+            GlideApp.with(this).load(imageRef).into(findView)
+
+
+
+
+
+
+
+            // Set the Image in ImageView after decoding the String
+
+
+        }
+    }
+
     private fun createAlertForAddingImage() {
+        var perms = ArrayList<String>()
+        perms.add(WRITE_EXTERNAL_STORAGE)
+        perms.add(CAMERA)
+        var array = arrayOfNulls<String>(perms.count())
+
         val items = arrayOf<CharSequence>(
             getString(R.string.take_photo),
             getString(R.string.choose_from_library),
@@ -192,27 +320,129 @@ class StoryActivity : AppCompatActivity() {
         builder.setTitle(getString(R.string.select_image))
         builder.setItems(items) { dialog, item ->
             if (items[item] == getString(R.string.take_photo)) {
-                val intent = Intent("android.media.action.IMAGE_CAPTURE")
-                val file = File(Environment.getExternalStorageDirectory().toString() + File.separator + "image.jpg")
-                intent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(file))
-                startActivityForResult(intent, REQUEST_IMAGE_CAPTURE)
+                val storagePerm = ContextCompat.checkSelfPermission(this@StoryActivity, WRITE_EXTERNAL_STORAGE)
+                val cameraPerm = ContextCompat.checkSelfPermission(this@StoryActivity, CAMERA)
+                if ( storagePerm != PERMISSION_GRANTED || cameraPerm != PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(this@StoryActivity, perms.toArray(array), REQUEST_STORAGE_CAMERA)
+                } else {
+                    dispatchTakePictureIntent()
+                }
             } else if (items[item] == getString(R.string.choose_from_library)) {
-                IMAGE_NAME = System.currentTimeMillis().toString() + ".jpg"
-
-                val intent = Intent(
-                    Intent.ACTION_PICK,
-                    android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-                )
-                intent.type = "image/*"
-                startActivityForResult(
-                    Intent.createChooser(intent, getString(R.string.select_image)),
-                    LIBRARY_REQUEST
-                )
+                if (ContextCompat.checkSelfPermission(this@StoryActivity, WRITE_EXTERNAL_STORAGE) != PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(this@StoryActivity, perms.toArray(array), REQUEST_STORAGE_SELECT)
+                } else {
+                    dispatchSelectImageIntent()
+                }
             } else if (items[item] == getString(R.string.cancel)) {
                 dialog.dismiss()
             }
         }
         builder.show()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == REQUEST_STORAGE_CAMERA) {
+            if (grantResults.size == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                dispatchTakePictureIntent()
+            }
+        } else if (requestCode == REQUEST_STORAGE_SELECT) {
+            if (grantResults.size == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                dispatchSelectImageIntent()
+            }
+        }
+    }
+
+    private var imgDecodableString: String? = ""
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+		super.onActivityResult(requestCode, resultCode, data)
+		try {
+            if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
+                val imageView = ImageView(this@StoryActivity)
+
+                // Set the Image in ImageView after decoding the String
+                imageView.setImageBitmap(BitmapFactory
+                    .decodeFile(mCurrentPhotoPath))
+                imageView.layoutParams = ViewGroup.LayoutParams(240, 240)
+                ll_imageGallery?.addView(imageView, 0)
+                storeImageOnFirebaseStorage(mCurrentPhotoPath)
+
+
+            }
+			// When an Image is picked
+			else if (requestCode == LIBRARY_REQUEST && resultCode == RESULT_OK
+					&& null != data) {
+				// Get the Image from data
+
+				var selectedImage = data.getData()
+                Log.w(TAG, "selectedImage : $selectedImage")
+				var filePathColumn = ArrayList<String>()
+                filePathColumn.add(MediaStore.Images.Media.DATA )
+                var array = arrayOfNulls<String>(filePathColumn.size)
+
+				// Get the cursor
+				var cursor = getContentResolver().query(selectedImage,
+						filePathColumn.toArray(array), null, null, null);
+				// Move to first row
+				cursor.moveToFirst();
+
+                var columnIndex = cursor.getColumnIndex(filePathColumn[0])
+				imgDecodableString = cursor.getString(columnIndex)
+                Log.w(TAG, imgDecodableString)
+				cursor.close()
+                val imageView = ImageView(this@StoryActivity)
+
+                // Set the Image in ImageView after decoding the String
+                imageView.setImageBitmap(BitmapFactory
+                    .decodeFile(imgDecodableString))
+                imageView.layoutParams = ViewGroup.LayoutParams(240, 240)
+                ll_imageGallery?.addView(imageView, 0)
+
+                storeImageOnFirebaseStorage(imgDecodableString)
+
+			} else {
+				Toast.makeText(this, "You haven't picked Image",
+						Toast.LENGTH_LONG).show()
+			}
+
+		} catch (e: Exception) {
+			Log.w(TAG, "found an error in getting data", e)
+		}
+
+	}
+
+    private fun storeImageOnFirebaseStorage(imagePath: String?) {
+        if (imagePath != null) {
+            val storageRef = storage.reference
+            val name = generateImageName()
+            val imageRef = storageRef.child(name)
+            val image = HashMap<String, Any>()
+            image["name"] = name
+            image["cr_date"] = Timestamp.now()
+
+            db.collection("users")
+                .document(auth.currentUser!!.uid)
+                .collection("notes")
+                .document(docref)
+                .collection("images").add(image).addOnSuccessListener { ref ->
+                    Log.d(TAG, "successfully added image data to note")
+                }.addOnFailureListener { e->
+                    Log.w(TAG, "error uploading image data", e)
+                }
+
+
+            var uploadTask = imageRef.putFile(Uri.fromFile(File(imagePath)))
+            uploadTask.addOnFailureListener { e ->
+                // Handle unsuccessful uploads
+                Log.w(TAG, "error in uploading image", e)
+            }.addOnSuccessListener { taskSnapshot ->
+                // taskSnapshot.metadata contains file metadata such as size, content-type, etc.
+                // ...
+                Log.d(TAG, "successfully uploaded file: ${taskSnapshot.metadata!!.name}")
+            }
+        }
     }
 
 

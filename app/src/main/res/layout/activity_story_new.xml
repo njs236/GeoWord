@@ -25,17 +25,17 @@
                 android:id="@+id/story_toolbar"
                 app:title="@string/app_name"
                 android:layout_width="match_parent"
-                android:layout_height="?attr/actionBarSize"
+                android:layout_height="0dp"
                 android:layout_weight="1"
                 android:background="?attr/colorPrimary"
                 app:popupTheme="@style/AppTheme.PopupOverlay">
 
         </android.support.v7.widget.Toolbar>
         </LinearLayout>
-        <ScrollView android:layout_width="wrap_content"
+        <ScrollView android:layout_width="match_parent"
                     android:layout_height="wrap_content">
             <LinearLayout
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
                 <LinearLayout
@@ -44,45 +44,54 @@
                     android:layout_height="wrap_content"
                     android:background="@android:color/white">
                     <EditText
-                        android:text=""
-                        android:textColor="@android:color/black"
-                        android:textSize="12sp"
-                        android:hint="@string/hint_title"
-                        android:layout_width="match_parent"
-                        android:layout_margin="@dimen/activity_margin"
-                        android:layout_height="wrap_content"
-                        android:id="@+id/editTextTitle"/>
+                            android:text=""
+                            android:textSize="12sp"
+                            android:textColor="@color/black"
+                            android:hint="@string/hint_title"
+                            android:layout_width="match_parent"
+                            android:layout_margin="@dimen/activity_margin"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:id="@+id/editTextTitle" android:inputType="text"/>
                     <EditText
-                        android:text=""
-                        android:textColor="@android:color/black"
-                        android:textSize="12sp"
-                        android:hint="@string/hint_name"
-                        android:layout_width="match_parent"
-                        android:layout_margin="@dimen/activity_margin"
-                        android:layout_height="wrap_content"
-                        android:id="@+id/editTextName"/>
+                            android:text=""
+                            android:textSize="12sp"
+                            android:textColor="@color/black"
+                            android:hint="@string/hint_name"
+                            android:layout_width="match_parent"
+                            android:layout_margin="@dimen/activity_margin"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:id="@+id/editTextName" android:inputType="textPersonName"/>
                     <EditText
-                        android:text=""
-                        android:textColor="@android:color/black"
-                        android:textSize="12sp"
-                        android:hint="@string/hint_desc"
-                        android:layout_width="match_parent"
-                        android:layout_margin="@dimen/activity_margin"
-                        android:layout_height="wrap_content"
-                        android:id="@+id/editTextDescription"/>
+                            android:text=""
+                            android:textSize="12sp"
+                            android:hint="@string/hint_desc"
+                            android:textColor="@color/black"
+                            android:layout_width="match_parent"
+                            android:layout_margin="@dimen/activity_margin"
+                            android:layout_height="wrap_content"
+                            android:id="@+id/editTextDescription"
+                            android:ellipsize="end"
+                            android:inputType="textImeMultiLine" android:minLines="8" android:maxLines="8"/>
                 </LinearLayout>
-                <LinearLayout
-                    android:id="@+id/ll_imageGallery"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-                    <ImageView android:id="@+id/story_ivNewImage"
-                       android:layout_width="120dp"
-                       android:layout_height="120dp"
-                       app:srcCompat="@drawable/ic_add_a_photo_black_24dp"/>
+                <HorizontalScrollView android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@android:color/white">
+                    <LinearLayout
+                        android:id="@+id/ll_imageGallery"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+                        <ImageView android:id="@+id/story_ivNewImage"
+                                   android:layout_width="120dp"
+                                   android:layout_height="120dp"
+                                   app:srcCompat="@drawable/ic_add_a_photo_black_24dp"
+                                   android:contentDescription="@string/todo" android:background="@drawable/dotted"/>
 
 
                 </LinearLayout>
+                </HorizontalScrollView>
             </LinearLayout>
         </ScrollView>
 
