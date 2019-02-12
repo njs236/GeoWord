@@ -12,14 +12,24 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.tasks.OnFailureListener
+import com.google.android.gms.tasks.OnSuccessListener
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.UserProfileChangeRequest
+import com.google.firebase.firestore.*
 
 private const val ARG_PARAM1 = "param1"
+private const val ARG_LAT = "latitude"
+private const val ARG_LNG = "longitude"
+private const val ARG_TITLE = "title"
+private const val ARG_PERSON = "person"
+private const val ARG_DESC = "description"
+private const val ARG_DOCREF = "document_id"
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapClickListener, GoogleMap.OnMarkerClickListener, GoogleMap.OnMarkerDragListener {
     override fun onMarkerDragEnd(p0: Marker?) {
@@ -36,25 +46,48 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
 
     override fun onMarkerClick(p0: Marker?): Boolean {
         //TODO: when clicking on a marker, load story activity
-        val intent = Intent(this, StoryActivity::class.java)
-        startActivity(intent)
+        var point = GeoPoint(p0!!.position.latitude, p0!!.position.longitude)
+        db.collection("users")
+            .document(auth.currentUser!!.uid)
+            .collection("notes")
+            .whereEqualTo("latlng", point)
+            .get()
+            .addOnSuccessListener(retrieveMarkerSuccessListener())
+            .addOnFailureListener(retrieveMarkerFailureListener())
         return true
     }
 
     override fun onMapClick(p0: LatLng?) {
         //TODO: when clicking on map, load story activity
         val intent = Intent(this, StoryActivity::class.java)
-        intent.putExtra(ARG_PARAM1, true)
+        intent.putExtra(ARG_PARAM1, 1)
+        intent.putExtra(ARG_LAT, p0!!.latitude)
+        intent.putExtra(ARG_LNG, p0!!.longitude)
         startActivity(intent)
+
+    }
+
+    fun addMarkerSuccessListener() : OnSuccessListener<DocumentReference> = OnSuccessListener { documentReference->
+        Log.d(TAG, "DocumentSnapshot added with ID: " + documentReference.id)
+
+
+    }
+
+    fun addMarkerFailureListener() : OnFailureListener = OnFailureListener {e->
+        Log.w(TAG, "Error adding document", e)
+
     }
 
     private lateinit var mMap: GoogleMap
     private lateinit var auth: FirebaseAuth
+    private lateinit var db: FirebaseFirestore
     private var titleText : TextView? = null
     private var subTitleText: TextView? = null
     private var avatar: ImageView? = null
     private var navView: NavigationView? = null
     private val TAG = this.javaClass.simpleName
+    private var markers = ArrayList<LatLng>()
+    private var zoomProperty: Float = -1f
     // ...
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,6 +108,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
             mapFragment.getMapAsync(this)
 
             updateUser(auth.currentUser)
+            // Access a Cloud Firestore instance from your Activity
+            db = FirebaseFirestore.getInstance()
+
+
+
         } else {
             startActivity(Intent(this, LoginActivity::class.java))
         }
@@ -109,7 +147,94 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
 
         // Add a marker in Sydney and move the camera
         val sydney = LatLng(-34.0, 151.0)
-        mMap.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney))
+        //mMap.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
+        markers.clear()
+
+        db.collection("users")
+            .document(auth.currentUser!!.uid)
+            .addSnapshotListener(zoomProperty())
+        db.collection("users")
+            .document(auth.currentUser!!.uid)
+            .collection("notes")
+            .orderBy("cr_date", Query.Direction.ASCENDING)
+            .get()
+            .addOnSuccessListener(retrieveMarkersSuccessListener())
+            .addOnFailureListener(retrieveMarkersFailureListener())
+
+    }
+
+    fun retrieveMarkersSuccessListener(): OnSuccessListener<QuerySnapshot> = OnSuccessListener { result ->
+
+        for (document in result) {
+            Log.d(TAG, document.id + " =>" + document.data)
+            val point = document.getGeoPoint("latlng")
+            val title = document.getString("title")
+            val latlng = LatLng(point!!.latitude, point!!.longitude)
+            mMap.addMarker(MarkerOptions().position(latlng)
+                .title(title)
+                .icon(BitmapDescriptorFactory.fromResource(R.drawable.person)))
+            markers.add(latlng)
+        }
+        if (markers.count() > 0 && zoomProperty != -1f) {
+            val lastRecord = markers[markers.count() - 1]
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(lastRecord, zoomProperty))
+        } else {
+
+        }
+
+    }
+    fun retrieveMarkersFailureListener(): OnFailureListener = OnFailureListener { e->
+
+        Log.w(TAG, "error fetching document", e)
+    }
+
+    fun retrieveMarkerSuccessListener(): OnSuccessListener<QuerySnapshot> = OnSuccessListener { result ->
+        val intent = Intent(this, StoryActivity::class.java)
+        for (document in result) {
+            Log.d(TAG, document.id + " =>" + document.data)
+
+
+            val point = document.getGeoPoint("latlng")
+            val title = document.getString("title")
+            val person = document.getString("person")
+            val desc = document.getString("description")
+            val latlng = LatLng(point!!.latitude, point!!.longitude)
+            intent.putExtra(ARG_TITLE, title)
+            intent.putExtra(ARG_PERSON, person)
+            intent.putExtra(ARG_DESC, desc)
+            intent.putExtra(ARG_LAT, point!!.latitude)
+            intent.putExtra(ARG_LNG, point!!.longitude)
+            intent.putExtra(ARG_DOCREF, document.id)
+        }
+        // move camera to last seen location and update.
+
+        startActivity(intent)
+
+    }
+    fun retrieveMarkerFailureListener(): OnFailureListener = OnFailureListener { e->
+
+        Log.w(TAG, "error fetching document", e)
+    }
+
+    fun zoomProperty(): EventListener<DocumentSnapshot> = EventListener { snapshot, e ->
+
+        if (e != null) {
+            Log.w(TAG, "Listen failed.", e)
+            return@EventListener
+        }
+
+        if (snapshot != null && snapshot.exists()) {
+            Log.d(TAG, "Current data: " + snapshot.data)
+            var newZoom = snapshot.data?.get("defaultZoom") as Long
+            if (zoomProperty != newZoom.toFloat()) {
+                zoomProperty = newZoom.toFloat()
+                if (markers.count() > 0) {
+                    val lastRecord = markers[markers.count() - 1]
+                    mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(lastRecord, zoomProperty))
+                }
+            }
+        } else {
+            Log.d(TAG, "Current data: null")
+        }
     }
 }
