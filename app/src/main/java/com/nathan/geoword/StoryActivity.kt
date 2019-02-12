@@ -1,9 +1,14 @@
 package com.nathan.geoword
 
 import android.app.Activity
+import android.app.AlertDialog
+import android.content.DialogInterface
 import android.content.Intent
+import android.net.Uri
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
 import android.support.design.widget.FloatingActionButton
 import android.support.v7.widget.Toolbar
 import android.util.Log
@@ -11,9 +16,7 @@ import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
-import android.widget.EditText
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.tasks.OnFailureListener
 import com.google.android.gms.tasks.OnSuccessListener
@@ -23,6 +26,7 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
+import java.io.File
 
 // TODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -53,6 +57,8 @@ class StoryActivity : AppCompatActivity() {
     private var title: TextView? = null
     private var name: TextView? = null
     private var desc: TextView? = null
+    private var newImage: ImageView? = null
+    private var ll_imageGallery: LinearLayout? = null
     private var fab: FloatingActionButton? = null
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
@@ -92,22 +98,30 @@ class StoryActivity : AppCompatActivity() {
             titleEditable = findViewById(R.id.editTextTitle)
             nameEditable = findViewById(R.id.editTextName)
             descEditable = findViewById(R.id.editTextDescription)
+            newImage = findViewById(R.id.story_ivNewImage)
+            ll_imageGallery = findViewById(R.id.ll_imageGallery)
             titleEditable?.setText(storedTitle)
             nameEditable?.setText(storedPerson)
             descEditable?.setText(storedDescription)
+
             fab = findViewById(R.id.fab)
             fab?.setOnClickListener(fabNewClickListener())
+            newImage?.setOnClickListener(newImageClickListener())
         } else if (state == ActivityState.edit) {
             setContentView(R.layout.activity_story_new)
             titleEditable = findViewById(R.id.editTextTitle)
             nameEditable = findViewById(R.id.editTextName)
             descEditable = findViewById(R.id.editTextDescription)
+            newImage = findViewById(R.id.story_ivNewImage)
+            ll_imageGallery = findViewById(R.id.ll_imageGallery)
             titleEditable?.setText(storedTitle)
             nameEditable?.setText(storedPerson)
             descEditable?.setText(storedDescription)
+
             fab = findViewById(R.id.fab)
             fab?.setImageDrawable(getDrawable(R.drawable.ic_edit_black_24dp))
             fab?.setOnClickListener(fabEditClickListener())
+            newImage?.setOnClickListener(newImageClickListener())
 
         } else {
             setContentView(R.layout.activity_story)
@@ -148,6 +162,57 @@ class StoryActivity : AppCompatActivity() {
         } else {
             startActivity(Intent(this, LoginActivity::class.java))
         }
+    }
+
+    fun newImageClickListener(): View.OnClickListener = View.OnClickListener { click->
+        // intent for camera gallery.
+        createAlertForAddingImage()
+
+    }
+
+    val REQUEST_IMAGE_CAPTURE = 1
+    var IMAGE_NAME= ""
+    val LIBRARY_REQUEST = 1001
+
+    private fun dispatchTakePictureIntent() {
+        Intent(MediaStore.ACTION_IMAGE_CAPTURE).also { takePictureIntent ->
+            takePictureIntent.resolveActivity(packageManager)?.also {
+                startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
+            }
+        }
+    }
+
+    private fun createAlertForAddingImage() {
+        val items = arrayOf<CharSequence>(
+            getString(R.string.take_photo),
+            getString(R.string.choose_from_library),
+            getString(R.string.cancel)
+        )
+        val builder = AlertDialog.Builder(this@StoryActivity)
+        builder.setTitle(getString(R.string.select_image))
+        builder.setItems(items) { dialog, item ->
+            if (items[item] == getString(R.string.take_photo)) {
+                val intent = Intent("android.media.action.IMAGE_CAPTURE")
+                val file = File(Environment.getExternalStorageDirectory().toString() + File.separator + "image.jpg")
+                intent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(file))
+                startActivityForResult(intent, REQUEST_IMAGE_CAPTURE)
+            } else if (items[item] == getString(R.string.choose_from_library)) {
+                IMAGE_NAME = System.currentTimeMillis().toString() + ".jpg"
+
+                val intent = Intent(
+                    Intent.ACTION_PICK,
+                    android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                )
+                intent.type = "image/*"
+                startActivityForResult(
+                    Intent.createChooser(intent, getString(R.string.select_image)),
+                    LIBRARY_REQUEST
+                )
+            } else if (items[item] == getString(R.string.cancel)) {
+                dialog.dismiss()
+            }
+        }
+        builder.show()
     }
 
 
