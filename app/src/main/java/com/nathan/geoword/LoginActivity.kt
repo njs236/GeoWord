@@ -25,16 +25,20 @@ import java.util.ArrayList
 import android.Manifest.permission.READ_CONTACTS
 import android.content.Intent
 import android.util.Log
+import android.widget.EditText
 import android.widget.Toast
 import com.google.firebase.auth.ActionCodeSettings
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.UserProfileChangeRequest
 
 import kotlinx.android.synthetic.main.activity_login.*
 
 /**
  * A login screen that offers login via email/password.
  */
+
+private const val ARG_LOGIN = "login"
 class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
     /**
      * Keep track of the login task to ensure we can cancel it if requested.
@@ -43,13 +47,45 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
 
     private lateinit var auth: FirebaseAuth
     private val TAG = this.javaClass.simpleName
+
+    private var state: LoginState = LoginState.invalid
+    private var changeState: TextView? = null
+    private var nameField: EditText? = null
+
+    enum class LoginState(val number : Int) {
+        login(0), register(1), invalid(2);
+    }
+
+    fun findStateFromNumber(number: Int): LoginState {
+        for (state in LoginState.values()) {
+            if (number == state.number) {
+                return state
+            }
+        }
+        return LoginState.invalid
+    }
 // ...
 
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_login)
+
+        state = findStateFromNumber(intent.getIntExtra(ARG_LOGIN, LoginState.invalid.number))
+
+        if (state == LoginState.login) {
+            setContentView(R.layout.activity_login)
+            changeState = findViewById(R.id.loginTextViewRegister)
+        } else if (state == LoginState.register) {
+            setContentView(R.layout.activity_register)
+            changeState = findViewById(R.id.registerTextViewLogin)
+            nameField = findViewById(R.id.registerEditTextName)
+
+
+        }
+
+        changeState?.setOnClickListener(changeState())
+
         // Set up the login form.
         populateAutoComplete()
         password.setOnEditorActionListener(TextView.OnEditorActionListener { _, id, _ ->
@@ -62,8 +98,23 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
 
         email_sign_in_button.setOnClickListener { attemptLogin() }
 
+
+
         // Initialize Firebase Auth
         auth = FirebaseAuth.getInstance()
+    }
+
+    fun changeState(): View.OnClickListener = View.OnClickListener { click->
+
+        if (state == LoginState.login) {
+            val intent = Intent(this, LoginActivity::class.java)
+            intent.putExtra(ARG_LOGIN, 1)
+            startActivity(intent)
+        } else if (state == LoginState.register) {
+            val intent = Intent(this, LoginActivity::class.java)
+            intent.putExtra(ARG_LOGIN, 0)
+            startActivity(intent)
+        }
     }
 
     public override fun onStart() {
@@ -126,10 +177,17 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
         // Reset errors.
         email.error = null
         password.error = null
+        if (state == LoginState.register) {
+            nameField?.error = null
+        }
 
         // Store values at the time of the login attempt.
+        var nameStr = ""
         val emailStr = email.text.toString()
         val passwordStr = password.text.toString()
+        if (state == LoginState.register) {
+            nameStr = nameField?.text.toString()
+        }
 
         var cancel = false
         var focusView: View? = null
@@ -160,8 +218,12 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true)
-            mAuthTask = UserLoginTask(emailStr, passwordStr)
-            mAuthTask!!.execute(null as Void?)
+            if (state == LoginState.login) {
+                mAuthTask = UserLoginTask(emailStr, passwordStr)
+                mAuthTask!!.execute(null as Void?)
+            } else if (state == LoginState.register) {
+                signUpWithEmailAndPassword(emailStr, passwordStr, nameStr)
+            }
         }
     }
 
@@ -173,6 +235,32 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
     private fun isPasswordValid(password: String): Boolean {
         //TODO: Replace this with your own logic
         return password.length > 4
+    }
+
+    fun signUpWithEmailAndPassword(email: String, password: String, name: String?) {
+        auth.createUserWithEmailAndPassword(email, password)
+            .addOnCompleteListener(this) { task ->
+                if (task.isSuccessful) {
+                    // Sign in success, update UI with the signed-in user's information
+                    Log.d(TAG, "createUserWithEmail:success")
+                    val user = auth.currentUser
+
+                    val request = UserProfileChangeRequest.Builder().setDisplayName(name).build()
+                    user?.updateProfile(request)?.addOnSuccessListener { updateUI(user) }?.addOnFailureListener {  e->
+
+                        Log.w(TAG, "error in updating profile", e)
+                    }
+
+                } else {
+                    // If sign in fails, display a message to the user.
+                    Log.w(TAG, "createUserWithEmail:failure", task.exception)
+                    Toast.makeText(baseContext, "Authentication failed.",
+                        Toast.LENGTH_SHORT).show()
+                    updateUI(null)
+                }
+
+                // ...
+            }
     }
 
     /**

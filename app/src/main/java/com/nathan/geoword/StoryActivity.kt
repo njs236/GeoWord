@@ -50,6 +50,7 @@ private const val ARG_TITLE = "title"
 private const val ARG_PERSON = "person"
 private const val ARG_DESC = "description"
 private const val ARG_DOCREF = "document_id"
+private const val ARG_LOGIN = "login"
 
 private var arguments: Bundle? = null
 
@@ -184,7 +185,9 @@ class StoryActivity : AppCompatActivity() {
 
 
         } else {
-            startActivity(Intent(this, LoginActivity::class.java))
+            val intent = Intent(this, LoginActivity::class.java)
+            intent.putExtra(ARG_LOGIN, 0)
+            startActivity(intent)
         }
     }
 

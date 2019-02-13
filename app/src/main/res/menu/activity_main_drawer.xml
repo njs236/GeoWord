@@ -4,6 +4,6 @@
     <group android:checkableBehavior="single">
         <item
             android:id="@+id/menu_todo"
-            android:title="@string/item_todo"/>
+            android:title="@string/item_logout"/>
     </group>
 </menu>

@@ -51,6 +51,24 @@
                     android:layout_height="wrap_content">
 
                 <EditText
+                        android:id="@+id/registerEditTextName"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="@string/register_hint_name"
+                        android:imeActionId="6"
+                        android:imeActionLabel="@string/action_sign_in_short"
+                        android:imeOptions="actionUnspecified"
+                        android:inputType="text"
+                        android:maxLines="1"
+                        android:singleLine="true"/>
+
+            </android.support.design.widget.TextInputLayout>
+
+            <android.support.design.widget.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                <EditText
                         android:id="@+id/password"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -70,15 +88,15 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
-                    android:text="@string/action_sign_in"
+                    android:text="@string/action_register"
                     android:textStyle="bold"/>
             <TextView
-                    android:text="@string/login_register"
+                    android:text="@string/register_login"
                     android:layout_margin="15dp"
                     android:textSize="20sp"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:id="@+id/loginTextViewRegister"
+                    android:id="@+id/registerTextViewLogin"
                     android:textAlignment="center"
                     android:enabled="true"/>
 

@@ -30,6 +30,7 @@ private const val ARG_TITLE = "title"
 private const val ARG_PERSON = "person"
 private const val ARG_DESC = "description"
 private const val ARG_DOCREF = "document_id"
+private const val ARG_LOGIN = "login"
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapClickListener, GoogleMap.OnMarkerClickListener, GoogleMap.OnMarkerDragListener {
     override fun onMarkerDragEnd(p0: Marker?) {
@@ -92,12 +93,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_maps)
-
-       navView = findViewById(R.id.nav_view)
+        navView = findViewById(R.id.nav_view)
         avatar = findViewById(R.id.nav_imageView)
         titleText = navView!!.getHeaderView(0).findViewById(R.id.nav_tvTitle)
         subTitleText = navView!!.getHeaderView(0).findViewById(R.id.nav_tvSubtitle)
-
 
 // Initialize Firebase Auth
         auth = FirebaseAuth.getInstance()
@@ -114,11 +113,31 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
 
 
         } else {
-            startActivity(Intent(this, LoginActivity::class.java))
+            val intent = Intent(this, LoginActivity::class.java)
+            intent.putExtra(ARG_LOGIN, 0)
+            startActivity(intent)
+        }
+
+
+
+        navView?.menu?.getItem(0)?.setOnMenuItemClickListener { click->
+            //logout
+            signOut()
+
+            true
         }
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
 
+    }
+
+    fun signOut() {
+        if (auth.currentUser != null) {
+            auth.signOut()
+            val intent = Intent(this, LoginActivity::class.java)
+            intent.putExtra(ARG_LOGIN, 0)
+            startActivity(intent)
+        }
     }
 
     fun updateUser(user: FirebaseUser?) {
