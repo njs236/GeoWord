@@ -82,10 +82,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     private lateinit var mMap: GoogleMap
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
-    private var titleText : TextView? = null
-    private var subTitleText: TextView? = null
-    private var avatar: ImageView? = null
-    private var navView: NavigationView? = null
+    private lateinit var titleText : TextView
+    private lateinit var subTitleText: TextView
+    private lateinit var avatar: ImageView
+    private lateinit var navView: NavigationView
     private val TAG = this.javaClass.simpleName
     private var markers = ArrayList<LatLng>()
     private var zoomProperty: Float = -1f
@@ -94,9 +94,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_maps)
         navView = findViewById(R.id.nav_view)
-        avatar = findViewById(R.id.nav_imageView)
-        titleText = navView!!.getHeaderView(0).findViewById(R.id.nav_tvTitle)
-        subTitleText = navView!!.getHeaderView(0).findViewById(R.id.nav_tvSubtitle)
+        avatar = navView.getHeaderView(0).findViewById(R.id.nav_imageView)
+        avatar.setOnClickListener{ click->
+
+            startActivity(Intent(this,
+                ProfileActivity::class.java))
+        }
+        titleText = navView.getHeaderView(0).findViewById(R.id.nav_tvTitle)
+        subTitleText = navView.getHeaderView(0).findViewById(R.id.nav_tvSubtitle)
 
 // Initialize Firebase Auth
         auth = FirebaseAuth.getInstance()
@@ -119,8 +124,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         }
 
 
-
-        navView?.menu?.getItem(0)?.setOnMenuItemClickListener { click->
+        navView.menu.getItem(1).setOnMenuItemClickListener { click->
             //logout
             signOut()
 
