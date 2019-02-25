@@ -18,7 +18,18 @@ import kotlinx.android.synthetic.main.activity_profile.*
 
 private const val ARG_LOGIN = "login"
 
-class ProfileActivity : AppCompatActivity(), ProfileHomeFragment.OnHomeInteractionListener {
+class ProfileActivity : AppCompatActivity(),
+    ProfileHomeFragment.OnHomeInteractionListener,
+    AddGroupFragment.OnGroupInteractionListener,
+    AddFriendFragment.OnFriendInteractionListener{
+    override fun onFriendInteraction(uri: Uri) {
+        //TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    override fun onGroupInteraction(uri: Uri) {
+        //TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
     override fun onHomeInteraction(uri: Uri) {
         //TODO:("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
