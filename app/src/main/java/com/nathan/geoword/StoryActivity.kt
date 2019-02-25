@@ -174,9 +174,7 @@ class StoryActivity : AppCompatActivity() {
             db = FirebaseFirestore.getInstance()
             storage = FirebaseStorage.getInstance()
             if (state == ActivityState.edit || state == ActivityState.display)
-                db.collection("users")
-                    .document(auth.currentUser!!.uid)
-                    .collection("notes")
+                db.collection("notes")
                     .document(docref)
                     .collection("images").orderBy("cr_date", Query.Direction.ASCENDING).get()
                     .addOnSuccessListener(retrieveImageDataForNoteSuccessListener())
@@ -257,6 +255,7 @@ class StoryActivity : AppCompatActivity() {
 
     var mCurrentPhotoPath: String = ""
     var redundantImageName: String = ""
+    var imagePhotoPathArray: ArrayList<String> = ArrayList()
 
     @Throws(IOException::class)
     private fun createImageFile(): File {
@@ -370,7 +369,11 @@ class StoryActivity : AppCompatActivity() {
                     .decodeFile(mCurrentPhotoPath))
                 imageView.layoutParams = ViewGroup.LayoutParams(240, 240)
                 ll_imageGallery?.addView(imageView, 0)
-                storeImageOnFirebaseStorage(mCurrentPhotoPath)
+                if (state == ActivityState.new) {
+                    imagePhotoPathArray.add(mCurrentPhotoPath)
+                } else {
+                    storeImageOnFirebaseStorage(mCurrentPhotoPath)
+                }
 
 
             }
@@ -402,8 +405,11 @@ class StoryActivity : AppCompatActivity() {
                     .decodeFile(imgDecodableString))
                 imageView.layoutParams = ViewGroup.LayoutParams(240, 240)
                 ll_imageGallery?.addView(imageView, 0)
-
-                storeImageOnFirebaseStorage(imgDecodableString)
+                if (state==ActivityState.new) {
+                    imagePhotoPathArray.add(imgDecodableString!!)
+                } else {
+                    storeImageOnFirebaseStorage(imgDecodableString)
+                }
 
 			} else {
 				Toast.makeText(this, "You haven't picked Image",
@@ -425,9 +431,7 @@ class StoryActivity : AppCompatActivity() {
             image["name"] = name
             image["cr_date"] = Timestamp.now()
 
-            db.collection("users")
-                .document(auth.currentUser!!.uid)
-                .collection("notes")
+            db.collection("notes")
                 .document(docref)
                 .collection("images").add(image).addOnSuccessListener { ref ->
                     Log.d(TAG, "successfully added image data to note")
@@ -463,9 +467,8 @@ class StoryActivity : AppCompatActivity() {
             note["person"] = nameEditable?.text.toString()
             note["description"] = descEditable?.text.toString()
             note["latlng"] = GeoPoint(latitude!!, longitude!!)
-            db.collection("users")
-                .document(auth.currentUser!!.uid)
-                .collection("notes")
+            note["user"] = auth.currentUser!!.uid
+            db.collection("notes")
                 .add(note)
                 .addOnSuccessListener(addNoteSuccessListener())
                 .addOnFailureListener(addNoteFailureListener())
@@ -490,9 +493,7 @@ class StoryActivity : AppCompatActivity() {
                 note["person"] = nameEditable?.text.toString()
                 note["description"] = descEditable?.text.toString()
                 note["latlng"] = point
-                db.collection("users")
-                    .document(auth.currentUser!!.uid)
-                    .collection("notes")
+                db.collection("notes")
                     .document(docref)
 
                     .update(
@@ -529,6 +530,10 @@ class StoryActivity : AppCompatActivity() {
 
     fun addNoteSuccessListener(): OnSuccessListener<DocumentReference> = OnSuccessListener { documentReference->
         Log.d(TAG, "DocumentSnapshot added with ID: " + documentReference.id)
+        docref = documentReference.id
+        for (document in imagePhotoPathArray) {
+            storeImageOnFirebaseStorage(document)
+        }
     }
 
     fun addNoteFailureListener(): OnFailureListener = OnFailureListener { e->

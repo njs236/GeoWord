@@ -30,11 +30,18 @@
     <string name="login_register">Register</string>
     <string name="title_activity_profile">ProfileActivity</string>
     <string name="title_home">Home</string>
-    <string name="title_dashboard">Dashboard</string>
-    <string name="title_notifications">Notifications</string>
+    <string name="title_friend">Add Friend</string>
+    <string name="title_group">Add Group</string>
 
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="home_friends_list">Friends List</string>
     <string name="item_map">Navigate Map</string>
+    <string name="hint_addemail">Enter email</string>
+    <string name="friend_title">Add a friend</string>
+    <string name="group_title">Add a Group</string>
+    <string name="group_share">Share with:</string>
+    <string name="group_public">Public</string>
+    <string name="group_friends">Friends</string>
+    <string name="hint_group">Enter group name</string>
 </resources>

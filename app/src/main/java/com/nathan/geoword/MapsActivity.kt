@@ -48,9 +48,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     override fun onMarkerClick(p0: Marker?): Boolean {
         //TODO: when clicking on a marker, load story activity
         var point = GeoPoint(p0!!.position.latitude, p0!!.position.longitude)
-        db.collection("users")
-            .document(auth.currentUser!!.uid)
-            .collection("notes")
+        db.collection("notes")
+            .whereEqualTo("user", auth.currentUser!!.uid)
             .whereEqualTo("latlng", point)
             .get()
             .addOnSuccessListener(retrieveMarkerSuccessListener())
@@ -176,13 +175,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         db.collection("users")
             .document(auth.currentUser!!.uid)
             .addSnapshotListener(zoomProperty())
-        db.collection("users")
-            .document(auth.currentUser!!.uid)
-            .collection("notes")
+        // get your markers.
+        db.collection("notes")
+            .whereEqualTo("user", auth.currentUser!!.uid)
             .orderBy("cr_date", Query.Direction.ASCENDING)
             .get()
             .addOnSuccessListener(retrieveMarkersSuccessListener())
             .addOnFailureListener(retrieveMarkersFailureListener())
+
+        // get your friends markers.
 
     }
 

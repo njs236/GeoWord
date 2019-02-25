@@ -113,6 +113,14 @@ class ProfileActivity : AppCompatActivity(), ProfileHomeFragment.OnHomeInteracti
                 Log.w(TAG, "choosing: ProfileHome")
                 frag = ProfileHomeFragment()
             }
+            R.id.navigation_friend -> {
+                Log.w(TAG, "choosing: FriendFragment")
+                frag = AddFriendFragment()
+            }
+            R.id.navigation_group -> {
+                Log.w(TAG, "choosing: GroupFragment")
+                frag = AddGroupFragment()
+            }
         }
 
 
