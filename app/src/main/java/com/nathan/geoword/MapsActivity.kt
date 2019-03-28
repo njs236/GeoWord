@@ -22,6 +22,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.*
+import com.google.firebase.storage.FirebaseStorage
 
 private const val ARG_PARAM1 = "param1"
 private const val ARG_LAT = "latitude"
@@ -100,6 +101,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     private val TAG = this.javaClass.simpleName
     private var markers = ArrayList<LatLng>()
     private var zoomProperty: Float = -1f
+    private lateinit var storage: FirebaseStorage
+
     // ...
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -126,12 +129,16 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
             updateUser(auth.currentUser)
             // Access a Cloud Firestore instance from your Activity
             db = FirebaseFirestore.getInstance()
+            storage = FirebaseStorage.getInstance()
 
             db.collection("public").document(auth.currentUser!!.uid).get().addOnSuccessListener { document->
 
                 if (document != null) {
                     titleText?.text = document.getString("name")
                     subTitleText?.text = document.getString("email")
+                    if (document.get("avatar") != null) {
+                        displayAvatar(document.getString("avatar"))
+                    }
                 }
             }
 
@@ -153,6 +160,16 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
 
+    }
+
+    fun displayAvatar(imageName: String?) {
+        if (imageName != null) {
+            Log.w(TAG, "imageName: $imageName")
+
+
+            val imageRef = storage.reference.child(imageName)
+            GlideApp.with(this).load(imageRef).into(avatar)
+        }
     }
 
     fun signOut() {

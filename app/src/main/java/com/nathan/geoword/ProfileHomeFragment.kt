@@ -15,6 +15,7 @@ import android.widget.*
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.android.synthetic.main.fragment_profile_home.*
 
 
@@ -59,6 +60,8 @@ class ProfileHomeFragment : Fragment() {
 
     }
 
+    private lateinit var storage: FirebaseStorage
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -73,13 +76,16 @@ class ProfileHomeFragment : Fragment() {
 
         if (auth.currentUser != null) {
             updateUser(auth.currentUser)
-
+            storage = FirebaseStorage.getInstance()
             // Access a Cloud Firestore instance from your Activity
             db = FirebaseFirestore.getInstance()
             db.collection("public").document(auth.currentUser!!.uid).get().addOnSuccessListener { document->
 
                 if (document != null) {
                     tvName.text = document.getString("name")
+                    if (document.get("avatar") != null) {
+                        displayAvatar(document.getString("avatar"))
+                    }
                 }
             }
 
@@ -316,6 +322,15 @@ class ProfileHomeFragment : Fragment() {
         var decline: Button? = null
     }
 
+    fun displayAvatar(imageName: String?) {
+        if (imageName != null) {
+            Log.w(TAG, "imageName: $imageName")
+
+
+            val imageRef = storage.reference.child(imageName)
+            GlideApp.with(this).load(imageRef).into(ivAvatar)
+        }
+    }
 
 
 

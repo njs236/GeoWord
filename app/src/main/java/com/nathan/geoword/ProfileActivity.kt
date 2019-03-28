@@ -14,6 +14,7 @@ import android.widget.TextView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.android.synthetic.main.activity_profile.*
 
 private const val ARG_LOGIN = "login"
@@ -58,6 +59,8 @@ SettingsFragment.OnFragmentInteractionListener{
 
     private lateinit var db: FirebaseFirestore
 
+    private lateinit var storage: FirebaseStorage
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_profile)
@@ -93,11 +96,15 @@ SettingsFragment.OnFragmentInteractionListener{
             updateUser(auth.currentUser)
             // Access a Cloud Firestore instance from your Activity
             db = FirebaseFirestore.getInstance()
+            storage = FirebaseStorage.getInstance()
             db.collection("public").document(auth.currentUser!!.uid).get().addOnSuccessListener { document->
 
                 if (document != null) {
                     titleText?.text = document.getString("name")
                     subTitleText?.text = document.getString("email")
+                    if (document.get("avatar") != null) {
+                        displayAvatar(document.getString("avatar"))
+                    }
                 }
             }
 
@@ -106,6 +113,16 @@ SettingsFragment.OnFragmentInteractionListener{
             val intent = Intent(this, LoginActivity::class.java)
             intent.putExtra(ARG_LOGIN, 0)
             startActivity(intent)
+        }
+    }
+
+    fun displayAvatar(imageName: String?) {
+        if (imageName != null) {
+            Log.w(TAG, "imageName: $imageName")
+
+
+            val imageRef = storage.reference.child(imageName)
+            GlideApp.with(this).load(imageRef).into(avatar)
         }
     }
 
