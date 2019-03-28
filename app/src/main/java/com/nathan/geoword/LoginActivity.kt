@@ -51,6 +51,7 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
     private var state: LoginState = LoginState.invalid
     private var changeState: TextView? = null
     private var nameField: EditText? = null
+    private lateinit var passwordField: EditText
 
     enum class LoginState(val number : Int) {
         login(0), register(1), invalid(2);
@@ -70,8 +71,12 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+// Initialize Firebase Auth
+        auth = FirebaseAuth.getInstance()
 
-        state = findStateFromNumber(intent.getIntExtra(ARG_LOGIN, LoginState.invalid.number))
+        state = findStateFromNumber(intent.getIntExtra(ARG_LOGIN, LoginState.login.number))
+
+
 
         if (state == LoginState.login) {
             setContentView(R.layout.activity_login)
@@ -83,12 +88,13 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
 
 
         }
+        passwordField = findViewById(R.id.password)
 
         changeState?.setOnClickListener(changeState())
 
         // Set up the login form.
         populateAutoComplete()
-        password.setOnEditorActionListener(TextView.OnEditorActionListener { _, id, _ ->
+        passwordField.setOnEditorActionListener(TextView.OnEditorActionListener { _, id, _ ->
             if (id == EditorInfo.IME_ACTION_DONE || id == EditorInfo.IME_NULL) {
                 attemptLogin()
                 return@OnEditorActionListener true
@@ -100,8 +106,7 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
 
 
 
-        // Initialize Firebase Auth
-        auth = FirebaseAuth.getInstance()
+
     }
 
     fun changeState(): View.OnClickListener = View.OnClickListener { click->
@@ -385,7 +390,7 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
                     Log.w(TAG, "signInWithEmail:failure", task.exception)
                     Toast.makeText(baseContext, "Authentication failed.",
                         Toast.LENGTH_SHORT).show()
-                    updateUI(null)
+                    //updateUI(null)
                 }
             }
                 /*

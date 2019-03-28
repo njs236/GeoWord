@@ -2,6 +2,7 @@ package com.nathan.geoword
 
 import android.content.Context
 import android.content.Intent
+import android.database.DataSetObserver
 import android.net.Uri
 import android.os.Bundle
 import android.support.v4.app.Fragment
@@ -37,8 +38,10 @@ class ProfileHomeFragment : Fragment() {
     private var param1: String? = null
     private var param2: String? = null
     private var listener: OnHomeInteractionListener? = null
-    private lateinit var auth: FirebaseAuth
-    private lateinit  var db: FirebaseFirestore
+    lateinit var auth: FirebaseAuth
+    lateinit  var db: FirebaseFirestore
+    var listAdapter : FriendsListAdapter? = null
+    var values = ArrayList<FriendListValue>()
     private lateinit var ivAvatar: ImageView
     private lateinit var tvName: TextView
     private lateinit var listViewFriendsList: ListView
@@ -73,7 +76,12 @@ class ProfileHomeFragment : Fragment() {
 
             // Access a Cloud Firestore instance from your Activity
             db = FirebaseFirestore.getInstance()
+            db.collection("public").document(auth.currentUser!!.uid).get().addOnSuccessListener { document->
 
+                if (document != null) {
+                    tvName.text = document.getString("name")
+                }
+            }
 
 
         } else {
@@ -85,14 +93,104 @@ class ProfileHomeFragment : Fragment() {
 
         return view
     }
+
+    fun checkDB() {
+        values.clear()
+        // subs.
+        db.collection("sub")
+            .whereEqualTo("sub", auth.currentUser!!.uid).get()
+            .addOnSuccessListener { subSnapshot ->
+                val userList = ArrayList<String>()
+                val docids = ArrayList<String>()
+
+                for (document in subSnapshot) {
+                    // returns the current selection of subs to accept
+
+                    val userID = document.getString("user")!!
+                    Log.w(TAG, "user: $userID")
+                    userList.add(userID)
+                    val id = document.id
+                    Log.w(TAG, "docId: $id")
+                    docids.add(id)
+
+                }
+                if (userList.count() > 0) {
+                    for (user in userList) {
+                        db.collection("public").document(user).get()
+                            .addOnSuccessListener { document ->
+                                var count = 0
+                                if (document != null) {
+                                    val name = document.getString("name")!!
+                                    val email = document.getString("email")!!
+                                    Log.w(TAG, "name: $name")
+                                    Log.w(TAG, "id: ${docids[count]}")
+                                    values.add(FriendListValue(name, docids[count], user, FriendType.REGISTRATION))
+                                    count++
+                                }
+
+                                listAdapter?.notifyDataSetChanged()
+
+
+                            }
+
+                    }
+                }
+            }
+        //friends
+
+        db.collection("public").document(auth.currentUser!!.uid).get().addOnSuccessListener { documentSnapshot->
+            if (documentSnapshot != null) {
+                val friends = documentSnapshot.get("friends") as HashMap<String, Boolean>?
+                if (friends != null) {
+
+                    for ((key, value) in friends!!) {
+                        db.collection("public").document(key).get().addOnSuccessListener { document ->
+                            if (document != null) {
+                                values.add(FriendListValue(document.getString("name")!!))
+                            }
+                            listAdapter?.notifyDataSetChanged()
+
+                        }
+                    }
+                }
+
+
+            }
+        }
+    }
     fun updateUser(user: FirebaseUser?) {
         Log.d(TAG, "updateUser")
         Log.d(TAG, user?.uid)
-        Log.d(TAG, user?.displayName)
+        //Log.d(TAG, user?.displayName)
         Log.d(TAG, user?.email)
 
-        tvName.text = user?.displayName
+        //tvName.text = user?.displayName
         Log.d(TAG, "tvName: ${tvName.text}")
+    }
+    enum class FriendType(val type: Int) {
+        REGISTRATION(1), DEFAULT(0)
+
+
+    }
+    inner class FriendListValue {
+        var name: String? = null
+        var type: FriendType? = FriendType.DEFAULT
+        var userID: String? = null
+        var docId: String? = null
+
+
+
+        constructor(newName:String, newDoc: String, newUserID: String,newType: FriendType) {
+            name = newName
+            type = newType
+            docId = newDoc
+            userID = newUserID
+        }
+
+        constructor(newName: String) {
+            name = newName
+            type = FriendType.DEFAULT
+        }
     }
 
     fun populateTableList() {
@@ -101,52 +199,60 @@ class ProfileHomeFragment : Fragment() {
         val header = layoutInflater!!.inflate(R.layout.listview_row_header, listViewFriendsList, false) as ViewGroup
         val title = header.findViewById(R.id.listViewRowHeaderTitle) as TextView
         title.text = getString(R.string.home_friends_list)
+        values.clear()
 
 
         listViewFriendsList.addHeaderView(header)
-
-        val values = ArrayList<String>()
-        if (auth.currentUser?.displayName != "Steve Spillane") {
-            values.add("Steve Spillane")
-            values.add("Sue Sinclair")
-            values.add("Rob Sinclair")
-            values.add("David Sinclair")
-            values.add("Luke Sinclair")
-            values.add("Helen Sinclair")
-            values.add("Barry Sinclair")
-
-        } else {
-            values.add( "Nathan Sinclair")
-
-        }
-
-        val listAdapter = FriendsListAdapter(context!!, R.layout.listview_row_friend, values)
+        listAdapter = FriendsListAdapter(context!!, R.layout.listview_row_friend,values)
         listViewFriendsList.adapter = listAdapter
+
+        checkDB()
     }
 
-    open class FriendsListAdapter(context: Context, resource: Int, list: ArrayList<String>): ArrayAdapter<String>(context, resource,  list) {
+    inner class FriendsListAdapter(context: Context, resource: Int, list: ArrayList<FriendListValue>): ArrayAdapter<FriendListValue>(context, resource,  list) {
         var resource: Int
-        var list: ArrayList<String>
+        var list: ArrayList<FriendListValue>
         var vi: LayoutInflater
+        val TAG = this.javaClass.simpleName
+
 
         init {
             this.resource = resource
             this.list = list
             this.vi = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+
         }
 
         override fun getCount(): Int {
             return list.count()
         }
 
+        override fun getViewTypeCount(): Int {
+            return 2
+        }
+
+        override fun getItemViewType(position: Int): Int {
+            return list[position].type!!.type
+        }
+
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             var holder: ViewHolder
-            var retView : View
+            var retView: View = View(context)
             if (convertView == null) {
-                retView = vi.inflate(resource, null)
+
                 holder = ViewHolder()
-                holder.image = retView.findViewById(R.id.listViewRowFriendAvatar)
-                holder.name = retView.findViewById(R.id.listViewRowFriendName)
+                if (list[position].type == FriendType.REGISTRATION) {
+                    retView = vi.inflate(R.layout.listview_row_friend_sub, null)
+                    holder.image = retView.findViewById(R.id.listViewRowFriendSubAvatar)
+                    holder.name = retView.findViewById(R.id.listViewRowFriendSubName)
+                    holder.accept = retView.findViewById(R.id.button_sub_accept)
+                    holder.decline = retView.findViewById(R.id.button_sub_decline)
+                } else if (list[position].type == FriendType.DEFAULT) {
+                    retView = vi.inflate(R.layout.listview_row_friend, null)
+                    holder.image = retView.findViewById(R.id.listViewRowFriendAvatar)
+                    holder.name = retView.findViewById(R.id.listViewRowFriendName)
+                }
+
 
 
                 retView.tag = holder
@@ -155,17 +261,59 @@ class ProfileHomeFragment : Fragment() {
                 retView = convertView
             }
 
-            holder.name?.text = list[position]
+            holder.name?.text = list[position].name
+            holder.decline?.setOnClickListener { click ->
+                db.collection("sub")
+                    .document(list[position].docId!!)
+                    .delete()
+                    .addOnSuccessListener { Log.d(TAG, "document successfully deleted")
+                    checkDB()}
+                    .addOnFailureListener { e-> Log.w(TAG, "error deleting document", e) }
+
+
+            }
+            holder.accept?.setOnClickListener { click->
+
+
+
+                db.collection("public")
+                    .document(auth.currentUser!!.uid)
+                    .update("friends.${list[position].userID}",true)
+                    .addOnSuccessListener {
+                        Log.d(TAG, "friend successfully added")
+
+                        db.collection("public")
+                            .document(list[position].userID!!)
+                            .update("friends.${auth.currentUser!!.uid}", true)
+                            .addOnSuccessListener { Log.d(TAG, "added in other friends list")
+                                listAdapter?.notifyDataSetChanged()}}
+                    .addOnFailureListener { e-> Log.w(TAG, "error adding friend", e)
+                        }
+
+                db.collection("sub")
+                    .document(list[position].docId!!)
+                    .delete()
+                    .addOnSuccessListener { Log.d(TAG, "document successfully deleted")
+                        checkDB()
+                    }
+                    .addOnFailureListener { e-> Log.w(TAG, "error deleting document", e)
+                        }
+            }
+
+
 
             return retView
         }
 
-        internal  class ViewHolder {
-            var image: ImageView? = null
-            var name: TextView? = null
-        }
 
 
+
+    }
+    internal  class ViewHolder {
+        var image: ImageView? = null
+        var name: TextView? = null
+        var accept: Button? = null
+        var decline: Button? = null
     }
 
 

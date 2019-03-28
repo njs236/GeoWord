@@ -21,7 +21,12 @@ private const val ARG_LOGIN = "login"
 class ProfileActivity : AppCompatActivity(),
     ProfileHomeFragment.OnHomeInteractionListener,
     AddGroupFragment.OnGroupInteractionListener,
-    AddFriendFragment.OnFriendInteractionListener{
+    AddFriendFragment.OnFriendInteractionListener,
+SettingsFragment.OnFragmentInteractionListener{
+    override fun onSettingsInteraction(uri: Uri) {
+        //TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
     override fun onFriendInteraction(uri: Uri) {
         //TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
@@ -88,7 +93,13 @@ class ProfileActivity : AppCompatActivity(),
             updateUser(auth.currentUser)
             // Access a Cloud Firestore instance from your Activity
             db = FirebaseFirestore.getInstance()
+            db.collection("public").document(auth.currentUser!!.uid).get().addOnSuccessListener { document->
 
+                if (document != null) {
+                    titleText?.text = document.getString("name")
+                    subTitleText?.text = document.getString("email")
+                }
+            }
 
 
         } else {
@@ -110,10 +121,10 @@ class ProfileActivity : AppCompatActivity(),
     fun updateUser(user: FirebaseUser?) {
         Log.d(TAG, "updateUser")
         Log.d(TAG, user?.uid)
-        Log.d(TAG, user?.displayName)
+        //Log.d(TAG, user?.displayName)
         Log.d(TAG, user?.email)
-        titleText.text = user?.displayName
-        subTitleText.text = user?.email
+        //titleText.text = user?.displayName
+        //subTitleText.text = user?.email
     }
 
 
@@ -131,6 +142,10 @@ class ProfileActivity : AppCompatActivity(),
             R.id.navigation_group -> {
                 Log.w(TAG, "choosing: GroupFragment")
                 frag = AddGroupFragment()
+            }
+            R.id.navigation_settings -> {
+                Log.w(TAG, "choosing: SettingsFragment")
+                frag = SettingsFragment()
             }
         }
 

@@ -70,6 +70,7 @@ class MySubscriptionService : Service() {
 
             }
             // if not empty
+                /*
                 if (emailList.count() > 0) {
 
 
@@ -82,6 +83,7 @@ class MySubscriptionService : Service() {
                             .addOnFailureListener { ex -> Log.w(TAG, "error in deleting sub", ex) }
                     }
                 }
+                */
 
         }.addOnFailureListener {ex->
             Log.w(TAG, "error in getting sub", ex)

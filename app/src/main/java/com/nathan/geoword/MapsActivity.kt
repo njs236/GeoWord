@@ -31,6 +31,7 @@ private const val ARG_PERSON = "person"
 private const val ARG_DESC = "description"
 private const val ARG_DOCREF = "document_id"
 private const val ARG_LOGIN = "login"
+private const val ARG_EDITABLE = "editable" // ie, your own notes.
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapClickListener, GoogleMap.OnMarkerClickListener, GoogleMap.OnMarkerDragListener {
     override fun onMarkerDragEnd(p0: Marker?) {
@@ -48,12 +49,23 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     override fun onMarkerClick(p0: Marker?): Boolean {
         //TODO: when clicking on a marker, load story activity
         var point = GeoPoint(p0!!.position.latitude, p0!!.position.longitude)
-        db.collection("notes")
-            .whereEqualTo("user", auth.currentUser!!.uid)
-            .whereEqualTo("latlng", point)
-            .get()
-            .addOnSuccessListener(retrieveMarkerSuccessListener())
-            .addOnFailureListener(retrieveMarkerFailureListener())
+        db.collection("public").document(auth.currentUser!!.uid).get().addOnSuccessListener { documentSnapshot ->
+            var map: HashMap<String, Boolean>? = null
+            if (documentSnapshot != null) {
+                map = documentSnapshot.get("friends") as HashMap<String, Boolean>
+            }
+            for ((friend, key) in map!!) {
+
+
+                db.collection("notes")
+                    .whereEqualTo("user", friend)
+                    .whereEqualTo("latlng", point)
+                    .get()
+                    .addOnSuccessListener(retrieveMarkerSuccessListener())
+                    .addOnFailureListener(retrieveMarkerFailureListener())
+            }
+        }
+
         return true
     }
 
@@ -92,6 +104,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_maps)
+        setTitle(R.string.title_activity_maps)
         navView = findViewById(R.id.nav_view)
         avatar = navView.getHeaderView(0).findViewById(R.id.nav_imageView)
         avatar.setOnClickListener{ click->
@@ -113,6 +126,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
             updateUser(auth.currentUser)
             // Access a Cloud Firestore instance from your Activity
             db = FirebaseFirestore.getInstance()
+
+            db.collection("public").document(auth.currentUser!!.uid).get().addOnSuccessListener { document->
+
+                if (document != null) {
+                    titleText?.text = document.getString("name")
+                    subTitleText?.text = document.getString("email")
+                }
+            }
 
 
 
@@ -146,10 +167,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     fun updateUser(user: FirebaseUser?) {
         Log.d(TAG, "updateUser")
         Log.d(TAG, user?.uid)
-        Log.d(TAG, user?.displayName)
+        //Log.d(TAG, user?.displayName)
         Log.d(TAG, user?.email)
-        titleText?.text = user?.displayName
-        subTitleText?.text = user?.email
+        //titleText?.text = user?.displayName
+        //subTitleText?.text = user?.email
     }
 
     /**
@@ -184,13 +205,28 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
             .addOnFailureListener(retrieveMarkersFailureListener())
 
         // get your friends markers.
+        db.collection("public").document(auth.currentUser!!.uid).get().addOnSuccessListener {documentSnapshot->
+            var map: HashMap<String, Boolean>? = null
+            if (documentSnapshot != null) {
+                map = documentSnapshot.get("friends") as HashMap<String, Boolean>
+            }
+            for ((friend, key) in map!!) {
+                db.collection("notes")
+                    .whereEqualTo("user", friend)
+                    .get()
+                    .addOnSuccessListener(retrieveMarkersSuccessListener())
+                    .addOnFailureListener(retrieveMarkersFailureListener())
+            }
+
+        }
+
 
     }
 
     fun retrieveMarkersSuccessListener(): OnSuccessListener<QuerySnapshot> = OnSuccessListener { result ->
 
         for (document in result) {
-            Log.d(TAG, document.id + " =>" + document.data)
+            //Log.d(TAG, document.id + " =>" + document.data)
             val point = document.getGeoPoint("latlng")
             val title = document.getString("title")
             val latlng = LatLng(point!!.latitude, point!!.longitude)
@@ -213,26 +249,31 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     }
 
     fun retrieveMarkerSuccessListener(): OnSuccessListener<QuerySnapshot> = OnSuccessListener { result ->
-        val intent = Intent(this, StoryActivity::class.java)
+
         for (document in result) {
+            val intent = Intent(this, StoryActivity::class.java)
             Log.d(TAG, document.id + " =>" + document.data)
 
-
+            if (document.getString("user") == auth.currentUser!!.uid) {
+                intent.putExtra(ARG_EDITABLE, true)
+            }
             val point = document.getGeoPoint("latlng")
-            val title = document.getString("title")
+            /*val title = document.getString("title")
             val person = document.getString("person")
-            val desc = document.getString("description")
-            val latlng = LatLng(point!!.latitude, point!!.longitude)
-            intent.putExtra(ARG_TITLE, title)
-            intent.putExtra(ARG_PERSON, person)
-            intent.putExtra(ARG_DESC, desc)
+            val desc = document.getString("description")*/
+            //val latlng = LatLng(point!!.latitude, point!!.longitude)
+            //intent.putExtra(ARG_TITLE, title)
+            //intent.putExtra(ARG_PERSON, person)
+            //intent.putExtra(ARG_DESC, desc)
             intent.putExtra(ARG_LAT, point!!.latitude)
             intent.putExtra(ARG_LNG, point!!.longitude)
             intent.putExtra(ARG_DOCREF, document.id)
+            Log.d(TAG, document.id)
+            startActivity(intent)
         }
         // move camera to last seen location and update.
 
-        startActivity(intent)
+
 
     }
     fun retrieveMarkerFailureListener(): OnFailureListener = OnFailureListener { e->

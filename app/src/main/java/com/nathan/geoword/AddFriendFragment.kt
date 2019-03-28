@@ -11,12 +11,14 @@ import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.EditText
 import android.widget.ListView
 import android.widget.Toast
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.android.synthetic.main.fragment_add_friend.*
 
 
 // TODO: Rename parameter arguments, choose names that match
@@ -43,6 +45,7 @@ class AddFriendFragment : Fragment() {
     private lateinit  var db: FirebaseFirestore
     private lateinit var listViewRecommendedFriendsList: ListView
     private lateinit var editTextEmail: EditText
+    private lateinit var btnSubmit: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,7 +63,8 @@ class AddFriendFragment : Fragment() {
         var view = inflater.inflate(R.layout.fragment_add_friend, container, false)
         listViewRecommendedFriendsList = view.findViewById(R.id.listViewRecommendedFriendsList)
         editTextEmail = view.findViewById(R.id.add_friend_etEmail)
-        editTextEmail.setOnKeyListener(onEmailListener())
+        btnSubmit = view.findViewById(R.id.add_friend_submit)
+        btnSubmit.setOnClickListener(onSubmit())
         auth = FirebaseAuth.getInstance()
 
         if (auth.currentUser != null) {
@@ -90,40 +94,63 @@ class AddFriendFragment : Fragment() {
 
     }
 
-    fun onEmailListener(): View.OnKeyListener = View.OnKeyListener { v, keyCode, event ->
-        if (keyCode ==KeyEvent.KEYCODE_ENTER && event.action == 0) {
+    fun onSubmit(): View.OnClickListener = View.OnClickListener { event->
+        // must include valid email
+        var doc = ""
+        var email =""
+        //search public folder
+        db.collection("public").whereEqualTo("email", editTextEmail.text.toString()).get().addOnSuccessListener { querySnapshot->
+            var doc = ""
+            for (document in querySnapshot) {
+                doc = document.id
+            }
+            db.collection("public").document(auth.currentUser!!.uid).get().addOnSuccessListener { documentSnapshot->
 
-            // must include valid email
-                var doc = ""
-                //search public folder
-                db.collection("public").get().addOnSuccessListener { querySnapshot ->
-                    for (document in querySnapshot) {
-                        val email = document.getString("email")
-                        if (email == editTextEmail.text.toString()) {
-                            doc = document.id
+                // get the friends list
+                var found = false
+                if (documentSnapshot != null) {
+                    val friends = documentSnapshot.data!!.get("friends") as HashMap<String, Boolean>
+                    for ((friend, value) in friends) {
+                        if (friend == doc ) {
+                            found = true
+                            break
                         }
                     }
                 }
+                if (found) {
 
-            if (TextUtils.isEmpty(doc)) {
-                Toast.makeText(context, "Email address not found", Toast.LENGTH_SHORT).show()
-            } else {
-                // send email to person to register and optionally get program on phone
+                } else {
+                    db.collection("public").whereEqualTo("email", editTextEmail.text.toString()).get().addOnSuccessListener { querySnapshot ->
+                        for (document in querySnapshot) {
+                            email = document.getString("email")!!
+                            doc = document.id
+                        }
+                        if (TextUtils.isEmpty(doc)) {
+                            Toast.makeText(context, "Email address not found", Toast.LENGTH_SHORT).show()
+                        } else {
+                            // send email to person to register and optionally get program on phone
 
-                // send request through firebase of user that he wants to invite into friends list
-                val sub = HashMap<String, Any>()
-                sub["user"] = auth.currentUser!!.uid
-                sub["sub"] = doc
-                db.collection("sub").add(sub).addOnSuccessListener {  }.addOnFailureListener {  }
+                            // send request through firebase of user that he wants to invite into friends list
+                            val sub = HashMap<String, Any>()
+                            sub["user"] = auth.currentUser!!.uid
+                            sub["sub"] = doc
+                            db.collection("sub").add(sub).addOnSuccessListener {  }.addOnFailureListener {  }
 
 
+                        }
+
+                        editTextEmail.clearFocus()
+                        editTextEmail.setText("")
+                    }
+                }
             }
-
-
-
         }
+
+
         true
     }
+
+
 
     // TODO: Rename method, update argument and hook method into UI event
     fun onButtonPressed(uri: Uri) {

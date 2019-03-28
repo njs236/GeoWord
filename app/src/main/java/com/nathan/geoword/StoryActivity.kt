@@ -51,6 +51,7 @@ private const val ARG_PERSON = "person"
 private const val ARG_DESC = "description"
 private const val ARG_DOCREF = "document_id"
 private const val ARG_LOGIN = "login"
+private const val ARG_EDITABLE = "editable"
 
 private var arguments: Bundle? = null
 
@@ -62,6 +63,7 @@ class StoryActivity : AppCompatActivity() {
     private var storedTitle : String = ""
     private var storedPerson : String = ""
     private var storedDescription : String = ""
+    private var storedEditable: Boolean = false
     private var docref :String = ""
 
     private var titleEditable: EditText? = null
@@ -103,10 +105,21 @@ class StoryActivity : AppCompatActivity() {
         state = findStateFromNumber(param1)
         latitude = intent.getDoubleExtra(ARG_LAT, -1.0)
         longitude = intent.getDoubleExtra(ARG_LNG, -1.0)
-        storedTitle = intent.extras.getString(ARG_TITLE, "")
-        storedPerson = intent.extras.getString(ARG_PERSON, "")
-        storedDescription = intent.extras.getString(ARG_DESC, "")
-        docref = intent.extras.getString(ARG_DOCREF, "")
+        storedEditable = intent.getBooleanExtra(ARG_EDITABLE, false)
+        try {
+            //storedTitle = intent.getStringExtra(ARG_TITLE)
+            //storedPerson = intent.getStringExtra(ARG_PERSON)
+            //storedDescription = intent.getStringExtra(ARG_DESC)
+
+            docref = intent.getStringExtra(ARG_DOCREF)
+        } catch (ex: IllegalStateException) {
+            //storedTitle = ""
+            //storedPerson = ""
+            //storedDescription = ""
+            docref = ""
+        }
+
+
 
         if (state == ActivityState.new) {
             setContentView(R.layout.activity_story_new)
@@ -115,9 +128,7 @@ class StoryActivity : AppCompatActivity() {
             descEditable = findViewById(R.id.editTextDescription)
             newImage = findViewById(R.id.story_ivNewImage)
             ll_imageGallery = findViewById(R.id.ll_imageGallery)
-            titleEditable?.setText(storedTitle)
-            nameEditable?.setText(storedPerson)
-            descEditable?.setText(storedDescription)
+
 
             fab = findViewById(R.id.fab)
             fab?.setOnClickListener(fabNewClickListener())
@@ -129,13 +140,14 @@ class StoryActivity : AppCompatActivity() {
             descEditable = findViewById(R.id.editTextDescription)
             newImage = findViewById(R.id.story_ivNewImage)
             ll_imageGallery = findViewById(R.id.ll_imageGallery)
-            titleEditable?.setText(storedTitle)
-            nameEditable?.setText(storedPerson)
-            descEditable?.setText(storedDescription)
+            //titleEditable?.setText(storedTitle)
+            //nameEditable?.setText(storedPerson)
+            //descEditable?.setText(storedDescription)
 
             fab = findViewById(R.id.fab)
             fab?.setImageDrawable(getDrawable(R.drawable.ic_edit_black_24dp))
             fab?.setOnClickListener(fabEditClickListener())
+
             newImage?.setOnClickListener(newImageClickListener())
 
         } else {
@@ -145,11 +157,14 @@ class StoryActivity : AppCompatActivity() {
             desc = findViewById(R.id.textViewDescription)
             ll_imageGallery = findViewById(R.id.ll_imageGallery)
 
-            title?.text = storedTitle
-            name?.text = storedPerson
-            desc?.text = storedDescription
+
             fab = findViewById(R.id.fab)
             fab?.setOnClickListener(fabDisplayClickListener())
+            if (storedEditable) {
+                fab?.show()
+            } else {
+                fab?.hide()
+            }
         }
 
         toolbar = findViewById(R.id.story_toolbar)
@@ -172,13 +187,33 @@ class StoryActivity : AppCompatActivity() {
             updateUser(auth.currentUser)
             // Access a Cloud Firestore instance from your Activity
             db = FirebaseFirestore.getInstance()
+
             storage = FirebaseStorage.getInstance()
             if (state == ActivityState.edit || state == ActivityState.display)
-                db.collection("notes")
-                    .document(docref)
-                    .collection("images").orderBy("cr_date", Query.Direction.ASCENDING).get()
-                    .addOnSuccessListener(retrieveImageDataForNoteSuccessListener())
-                    .addOnFailureListener(retrieveImageDataForNoteFailureListener())
+                if (docref != "") {
+                    db.collection("notes")
+                        .document(docref).get().addOnSuccessListener { documentSnapshot ->
+
+                            if (documentSnapshot != null) {
+                                storedTitle = documentSnapshot.getString("title")!!
+                                storedPerson = documentSnapshot.getString("person")!!
+                                storedDescription = documentSnapshot.getString("description")!!
+                                if (state == StoryActivity.ActivityState.edit) {
+                                    titleEditable?.setText(storedTitle)
+                                    nameEditable?.setText(storedPerson)
+                                    descEditable?.setText(storedDescription)
+                                } else if (state == StoryActivity.ActivityState.display) {
+                                    title?.text = storedTitle
+                                    name?.text = storedPerson
+                                    desc?.text = storedDescription
+                                }
+                            }
+                            db.collection("notes").document(docref).collection("images").orderBy("cr_date", Query.Direction.ASCENDING).get()
+                                .addOnSuccessListener(retrieveImageDataForNoteSuccessListener())
+                                .addOnFailureListener(retrieveImageDataForNoteFailureListener())
+                        }
+
+                }
 
 
 

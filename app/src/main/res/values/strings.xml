@@ -45,4 +45,6 @@
     <string name="group_friends">Friends</string>
     <string name="hint_group">Enter group name</string>
     <string name="group_required">Group name is required</string>
+    <string name="decline">decline</string>
+    <string name="accept">accept</string>
 </resources>
