@@ -78,7 +78,7 @@ class ImageGalleryActivity : AppCompatActivity(), ThumbnailCallback {
             db.collection("public").document(auth.currentUser!!.uid).get().addOnSuccessListener { documentSnapshot->
                 if (documentSnapshot != null) {
                     if (documentSnapshot.get("avatar") != null) {
-                        displayAvatar(documentSnapshot.getString("avatar"))
+                        //displayAvatar(documentSnapshot.getString("avatar"))
                     }
                     if (documentSnapshot.getString("name")!= null) {
                         etSetName.setText(documentSnapshot.getString("name"))
