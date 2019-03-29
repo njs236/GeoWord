@@ -47,4 +47,5 @@
     <string name="group_required">Group name is required</string>
     <string name="decline">decline</string>
     <string name="accept">accept</string>
+    <string name="title_activity_register">Register</string>
 </resources>

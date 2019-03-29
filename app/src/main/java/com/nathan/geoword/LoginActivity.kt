@@ -81,11 +81,12 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
         if (state == LoginState.login) {
             setContentView(R.layout.activity_login)
             changeState = findViewById(R.id.loginTextViewRegister)
+            setTitle(R.string.title_activity_login)
         } else if (state == LoginState.register) {
             setContentView(R.layout.activity_register)
             changeState = findViewById(R.id.registerTextViewLogin)
             nameField = findViewById(R.id.registerEditTextName)
-
+            setTitle(R.string.title_activity_register)
 
         }
         passwordField = findViewById(R.id.password)

@@ -240,6 +240,7 @@ class StoryActivity : AppCompatActivity() {
 
     fun retrieveImageDataForNoteFailureListener(): OnFailureListener = OnFailureListener { e->
         Log.w(TAG, "retrieving data for imageGallery failed", e)
+        Log.w(TAG, "retrieving data for imageGallery failed", e)
     }
 
     val REQUEST_IMAGE_CAPTURE = 1001

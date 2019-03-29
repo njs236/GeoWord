@@ -20,12 +20,9 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.Toast
+import android.widget.*
 import com.google.firebase.Timestamp
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.*
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import java.io.File
@@ -56,6 +53,11 @@ class SettingsFragment : Fragment() {
     private var listener: OnFragmentInteractionListener? = null
     private lateinit var ivAvatar: ImageView
     private lateinit var ivNewAvatar: ImageView
+    private lateinit var etOldPassword: EditText
+    private lateinit var etNewPassword: EditText
+    private lateinit var etConfirmPassword: EditText
+    private lateinit var etSetName: EditText
+    private lateinit var btnSubmitSettings: Button
     private lateinit var db: FirebaseFirestore
     private lateinit var auth: FirebaseAuth
     private lateinit var activity: Activity
@@ -79,6 +81,12 @@ class SettingsFragment : Fragment() {
         ivAvatar = view.findViewById(R.id.ivAvatar)
         ivNewAvatar = view.findViewById(R.id.ivNewAvatar)
         ivNewAvatar.setOnClickListener(changeAvatar())
+        etOldPassword = view.findViewById(R.id.etOldPassword)
+        etNewPassword = view.findViewById(R.id.etNewPassword)
+        etConfirmPassword = view.findViewById(R.id.etConfirmPassword)
+        etSetName = view.findViewById(R.id.etSetName)
+        btnSubmitSettings = view.findViewById(R.id.btnSubmitSettings)
+        btnSubmitSettings.setOnClickListener(submitSettings())
 
         auth = FirebaseAuth.getInstance()
         if (auth.currentUser != null) {
@@ -91,10 +99,64 @@ class SettingsFragment : Fragment() {
                     if (documentSnapshot.get("avatar") != null) {
                         displayAvatar(documentSnapshot.getString("avatar"))
                     }
+                    if (documentSnapshot.getString("name")!= null) {
+                        etSetName.setText(documentSnapshot.getString("name"))
+                    }
                 }
             }
         }
         return view
+    }
+
+    fun submitSettings(): View.OnClickListener = View.OnClickListener { click->
+
+        // get data from activity
+
+        val name = etSetName.text.toString()
+        var changePassword = false
+        val oldPassword = etOldPassword.text.toString()
+        val newPassword = etNewPassword.text.toString()
+        val confirmPassword = etConfirmPassword.text.toString()
+        val email = auth.currentUser!!.email!!
+        val user = auth.currentUser!!
+
+
+        if (newPassword != "") {
+            changePassword = true
+        }
+        if (changePassword) {
+            if (confirmPassword == "") {
+                Toast.makeText(context!!, "Please confirm Password", Toast.LENGTH_SHORT).show()
+            } else {
+                val credential = EmailAuthProvider.getCredential(email, oldPassword)
+                if (newPassword != confirmPassword) {
+                    Toast.makeText(context!!, "confirm password must be the same as your new password", Toast.LENGTH_SHORT).show()
+                } else {
+                    user.reauthenticate(credential).addOnCompleteListener { task->
+                        if (task.isSuccessful) {
+                            user.updatePassword(newPassword).addOnCompleteListener { passwordUpdateTask->
+                                if (!passwordUpdateTask.isSuccessful) {
+                                    Toast.makeText(context!!, "Something went wrong. Enter password information again.", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Log.w(TAG, "Password updated successfully")
+                                    db.collection("public").document(user.uid).update("name", name)
+                                        .addOnSuccessListener { Log.w(TAG, "name updated successfully") }
+                                        .addOnFailureListener { e-> Log.d(TAG, "name update fail.", e) }
+                                }
+                            }
+
+                        } else {
+                            Toast.makeText(context!!, "Authentication Failed", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+
+            }
+        }else {
+            db.collection("public").document(user.uid).update("name", name)
+                .addOnSuccessListener { Log.w(TAG, "name updated successfully") }
+                .addOnFailureListener { e -> Log.d(TAG, "name update fail.", e) }
+        }
     }
 
 
