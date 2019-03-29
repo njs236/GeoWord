@@ -4,7 +4,7 @@
                 xmlns:tools="http://schemas.android.com/tools"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:background="@color/thumb_background_color"
+                android:background="@color/thumb_background_colour"
                 tools:context=".ImageGalleryActivity">
 
 
@@ -22,7 +22,7 @@
             android:layout_height="@dimen/recycler_size"
             android:layout_alignParentBottom="true"
             android:layout_alignParentLeft="true"
-            android:background="@color/thumb_background_color">
+            android:background="@color/thumb_background_colour">
 
         <android.support.v7.widget.RecyclerView
                 android:id="@+id/thumbnails"

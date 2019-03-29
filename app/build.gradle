@@ -43,6 +43,7 @@ dependencies {
     implementation 'com.google.firebase:firebase-auth:16.1.0'
     implementation 'com.google.android.gms:play-services-auth:16.0.1'
     implementation 'com.google.firebase:firebase-firestore:18.0.0'
+    implementation 'com.google.android.gms:play-services-location:16.0.0'
     implementation 'com.google.firebase:firebase-storage:16.0.5'
     // FirebaseUI Storage only
     implementation 'com.firebaseui:firebase-ui-storage:4.1.0'

@@ -1,12 +1,20 @@
 package com.nathan.geoword
 
+import android.Manifest
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.location.Location
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.support.design.widget.NavigationView
+import android.support.v4.app.ActivityCompat
+import android.support.v4.content.ContextCompat
 import android.util.Log
 import android.widget.ImageView
 import android.widget.TextView
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -18,11 +26,13 @@ import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.tasks.OnFailureListener
 import com.google.android.gms.tasks.OnSuccessListener
+import com.google.android.gms.tasks.Task
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.*
 import com.google.firebase.storage.FirebaseStorage
+import com.nathan.geoword.Static.Companion.PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION
 
 private const val ARG_PARAM1 = "param1"
 private const val ARG_LAT = "latitude"
@@ -101,7 +111,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     private val TAG = this.javaClass.simpleName
     private var markers = ArrayList<LatLng>()
     private var zoomProperty: Float = -1f
+    private var locationSetting: Boolean = false
     private lateinit var storage: FirebaseStorage
+
+    private lateinit var mFusedLocationProviderClient: FusedLocationProviderClient
 
     // ...
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -141,6 +154,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
                     }
                 }
             }
+
+            mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
 
 
 
@@ -205,6 +220,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         mMap.setOnMarkerClickListener(this)
         mMap.setOnMarkerDragListener(this)
 
+        updateLocationUI()
+
+        getDeviceLocation()
+
         // Add a marker in Sydney and move the camera
         val sydney = LatLng(-34.0, 151.0)
         //mMap.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
@@ -213,6 +232,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         db.collection("users")
             .document(auth.currentUser!!.uid)
             .addSnapshotListener(zoomProperty())
+        db.collection("users")
+            .document(auth.currentUser!!.uid)
+            .addSnapshotListener(locationProperty())
         // get your markers.
         db.collection("notes")
             .whereEqualTo("user", auth.currentUser!!.uid)
@@ -298,6 +320,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         Log.w(TAG, "error fetching document", e)
     }
 
+    private var mDefaultLocation: LatLng? = null
+
     fun zoomProperty(): EventListener<DocumentSnapshot> = EventListener { snapshot, e ->
 
         if (e != null) {
@@ -312,11 +336,109 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
                 zoomProperty = newZoom.toFloat()
                 if (markers.count() > 0) {
                     val lastRecord = markers[markers.count() - 1]
+                    mDefaultLocation = lastRecord
                     mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(lastRecord, zoomProperty))
                 }
             }
         } else {
             Log.d(TAG, "Current data: null")
+        }
+    }
+
+    fun locationProperty(): EventListener<DocumentSnapshot> = EventListener { snapshot, e ->
+
+        if (e != null) {
+            Log.w(TAG, "listen for location failed.", e)
+            return@EventListener
+        }
+
+        if (snapshot!= null && snapshot.exists()) {
+            Log.d(TAG, "Current data:" + snapshot.data)
+            if (snapshot.data?.get("location") != null) {
+                var newLocation = snapshot.data?.get("location") as Boolean
+                locationSetting = newLocation
+
+                getLocationPermission()
+                updateLocationUI()
+                getDeviceLocation()
+            }
+        }
+    }
+
+    private var mLocationPermissionGranted: Boolean = false
+
+    private fun getLocationPermission() {
+        if (locationSetting) {
+            if (ContextCompat.checkSelfPermission(
+                    this.applicationContext,
+                    android.Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                mLocationPermissionGranted = true
+                Log.w(TAG, "locationPermissionGranted: ${mLocationPermissionGranted}")
+            } else {
+                var perms = ArrayList<String>()
+                perms.add(Manifest.permission.ACCESS_FINE_LOCATION)
+                var array = arrayOfNulls<String>(perms.count())
+                ActivityCompat.requestPermissions(this, perms.toArray(array), PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION)
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        mLocationPermissionGranted = false
+        if (requestCode == PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION) {
+            if (grantResults.count() > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                mLocationPermissionGranted = true
+            }
+        }
+        updateLocationUI()
+    }
+
+    private var mLastKnownLocation: Location? = null
+
+    fun updateLocationUI() {
+        if (mMap == null) {
+            return
+        }
+        try {
+            getLocationPermission()
+            if (mLocationPermissionGranted && locationSetting) {
+                mMap.isMyLocationEnabled = true
+                mMap.uiSettings.isMyLocationButtonEnabled = true
+            } else {
+                mMap.isMyLocationEnabled = false
+                mMap.uiSettings.isMyLocationButtonEnabled = false
+                mLastKnownLocation = null
+                getLocationPermission()
+            }
+        } catch (e: SecurityException ) {
+            Log.e(TAG, "Exception:", e)
+        }
+    }
+
+    fun getDeviceLocation() {
+        try {
+            if (mLocationPermissionGranted && locationSetting) {
+                val locationResult = mFusedLocationProviderClient.lastLocation
+                locationResult.addOnCompleteListener { task->
+                    if (task.isSuccessful) {
+                        mLastKnownLocation = task.getResult()
+                        mMap.moveCamera(CameraUpdateFactory
+                            .newLatLngZoom(LatLng(mLastKnownLocation!!.latitude,
+                                mLastKnownLocation!!.longitude),
+                                zoomProperty))
+                    } else {
+                        Log.d(TAG, "Current location is null. Using defaults")
+                        Log.e(TAG, "Exception", task.exception)
+                        mMap.moveCamera(CameraUpdateFactory
+                            .newLatLngZoom(mDefaultLocation, zoomProperty))
+                        mMap.uiSettings.isMyLocationButtonEnabled = false
+                    }
+                }
+            }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "exception:", e)
         }
     }
 }

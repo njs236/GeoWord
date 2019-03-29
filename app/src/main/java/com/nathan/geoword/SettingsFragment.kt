@@ -58,6 +58,7 @@ class SettingsFragment : Fragment() {
     private lateinit var etConfirmPassword: EditText
     private lateinit var etSetName: EditText
     private lateinit var btnSubmitSettings: Button
+    private lateinit var checkBoxLocation: CheckBox
     private lateinit var db: FirebaseFirestore
     private lateinit var auth: FirebaseAuth
     private lateinit var activity: Activity
@@ -87,6 +88,7 @@ class SettingsFragment : Fragment() {
         etSetName = view.findViewById(R.id.etSetName)
         btnSubmitSettings = view.findViewById(R.id.btnSubmitSettings)
         btnSubmitSettings.setOnClickListener(submitSettings())
+        checkBoxLocation = view.findViewById(R.id.checkBoxLocation)
 
         auth = FirebaseAuth.getInstance()
         if (auth.currentUser != null) {
@@ -119,6 +121,7 @@ class SettingsFragment : Fragment() {
         val confirmPassword = etConfirmPassword.text.toString()
         val email = auth.currentUser!!.email!!
         val user = auth.currentUser!!
+        val location = checkBoxLocation.isChecked
 
 
         if (newPassword != "") {
@@ -142,6 +145,9 @@ class SettingsFragment : Fragment() {
                                     db.collection("public").document(user.uid).update("name", name)
                                         .addOnSuccessListener { Log.w(TAG, "name updated successfully") }
                                         .addOnFailureListener { e-> Log.d(TAG, "name update fail.", e) }
+                                    db.collection("users").document(user.uid).update("location", location)
+                                        .addOnSuccessListener { Log.w(TAG, "location setting updated successfully") }
+                                        .addOnFailureListener { e-> Log.d(TAG, "location setting update fail.", e) }
                                 }
                             }
 
@@ -156,6 +162,9 @@ class SettingsFragment : Fragment() {
             db.collection("public").document(user.uid).update("name", name)
                 .addOnSuccessListener { Log.w(TAG, "name updated successfully") }
                 .addOnFailureListener { e -> Log.d(TAG, "name update fail.", e) }
+            db.collection("users").document(user.uid).update("location", location)
+                .addOnSuccessListener { Log.w(TAG, "location setting updated successfully") }
+                .addOnFailureListener { e-> Log.d(TAG, "location setting update fail.", e) }
         }
     }
 

@@ -24,10 +24,12 @@ import com.google.firebase.storage.StorageReference
 import kotlinx.android.synthetic.main.fragment_settings.*
 
 private const val ARG_DOCREF = "document_id"
+private const val ARG_IMAGEREF = "image_reference"
 
 class ImageGalleryActivity : AppCompatActivity(), ThumbnailCallback {
     override fun onThumbnailClick(imageRef: StorageReference) {
         //TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        Log.w(TAG, "open imageRef: ${imageRef.name}")
         GlideApp.with(context).load(imageRef).into(placeHolderImageView)
 
     }
@@ -50,6 +52,8 @@ class ImageGalleryActivity : AppCompatActivity(), ThumbnailCallback {
     private val context : Context = this@ImageGalleryActivity
     val thumbsManager: ThumbnailsManager = ThumbnailsManager()
 
+    private var imageIndex: Int = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_image_gallery)
@@ -65,6 +69,7 @@ class ImageGalleryActivity : AppCompatActivity(), ThumbnailCallback {
 
         try {
             docref = intent.getStringExtra(ARG_DOCREF)
+            imageIndex = intent.getIntExtra(ARG_IMAGEREF, 0)
         } catch (ex: IllegalStateException) {
             docref = ""
         }
@@ -81,12 +86,12 @@ class ImageGalleryActivity : AppCompatActivity(), ThumbnailCallback {
                         //displayAvatar(documentSnapshot.getString("avatar"))
                     }
                     if (documentSnapshot.getString("name")!= null) {
-                        etSetName.setText(documentSnapshot.getString("name"))
+                        //etSetName.setText(documentSnapshot.getString("name"))
                     }
                 }
             }
 
-            db.collection("notes").document(docref).collection("images").orderBy("cr_date", Query.Direction.ASCENDING).get()
+            db.collection("notes").document(docref).collection("images").orderBy("cr_date", Query.Direction.DESCENDING).get()
                 .addOnSuccessListener(retrieveImageDataForNoteSuccessListener())
                 .addOnFailureListener(retrieveImageDataForNoteFailureListener())
         }
@@ -115,6 +120,8 @@ class ImageGalleryActivity : AppCompatActivity(), ThumbnailCallback {
 
             val adapter = ThumbnailsAdapter(thumbs, activity)
             thumbListView.adapter = adapter
+            val imageRef = storage.reference.child(thumbs[imageIndex].image)
+            GlideApp.with(context).load(imageRef).into(placeHolderImageView)
             adapter.notifyDataSetChanged()
         }
         handler.post(runnable)
@@ -151,6 +158,7 @@ class ImageGalleryActivity : AppCompatActivity(), ThumbnailCallback {
         init {
             this.thumbNailCallback = newThumbnailCallback
             this.dataSet = newDataSet
+
 
         }
 

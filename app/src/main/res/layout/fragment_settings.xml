@@ -37,14 +37,17 @@
                     android:text="Name"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:id="@+id/tvSetName" android:layout_weight="1"/>
+                    android:fontFamily="sans-serif-light"
+                    android:id="@+id/tvSetName"
+                    android:layout_weight="1"/>
             <EditText
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:inputType="textPersonName"
                     android:hint="Name"
                     android:ems="10"
-                    android:id="@+id/etSetName" android:layout_weight="1"/>
+                    android:id="@+id/etSetName"
+                    android:layout_weight="1"/>
         </LinearLayout>
         <LinearLayout
                 android:orientation="horizontal"
@@ -54,14 +57,17 @@
                     android:text="Old Password"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:id="@+id/tvOldPassword" android:layout_weight="1"/>
+                    android:fontFamily="sans-serif-light"
+                    android:id="@+id/tvOldPassword"
+                    android:layout_weight="1"/>
             <EditText
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:inputType="textPassword"
                     android:hint="Enter Old Password"
                     android:ems="10"
-                    android:id="@+id/etOldPassword" android:layout_weight="1"/>
+                    android:id="@+id/etOldPassword"
+                    android:layout_weight="1"/>
         </LinearLayout>
         <LinearLayout
                 android:orientation="horizontal"
@@ -72,11 +78,14 @@
                     android:text="Change Password"
                     android:layout_width="150dp"
                     android:layout_height="wrap_content"
-                    android:id="@+id/tvNewPassword" android:layout_weight="1"/>
+                    android:fontFamily="sans-serif-light"
+                    android:id="@+id/tvNewPassword"
+                    android:layout_weight="1"/>
             <LinearLayout
                     android:orientation="vertical"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" android:layout_weight="2">
+                    android:layout_height="wrap_content"
+                    android:layout_weight="2">
                 <EditText
                         android:layout_width="fill_parent"
                         android:layout_height="wrap_content"
@@ -92,6 +101,19 @@
                         android:hint="Password  confirm"
                         android:id="@+id/etConfirmPassword" />
             </LinearLayout>
+        </LinearLayout>
+        <LinearLayout
+                android:orientation="horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+            <CheckBox
+                    android:text="@string/hint_location"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/checkBoxLocation"
+                    android:layout_weight="1"
+                    android:fontFamily="sans-serif-light"
+                    android:textSize="14dp" android:textColor="@android:color/tertiary_text_light"/>
         </LinearLayout>
         <Button
                 android:text="Submit"

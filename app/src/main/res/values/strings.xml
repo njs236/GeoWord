@@ -48,4 +48,5 @@
     <string name="decline">decline</string>
     <string name="accept">accept</string>
     <string name="title_activity_register">Register</string>
+    <string name="hint_location">Show Where You Are</string>
 </resources>

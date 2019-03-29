@@ -33,6 +33,10 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.*
 import com.google.firebase.storage.FirebaseStorage
+import com.nathan.geoword.Static.Companion.LIBRARY_REQUEST
+import com.nathan.geoword.Static.Companion.REQUEST_IMAGE_CAPTURE
+import com.nathan.geoword.Static.Companion.REQUEST_STORAGE_CAMERA
+import com.nathan.geoword.Static.Companion.REQUEST_STORAGE_SELECT
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
@@ -52,6 +56,7 @@ private const val ARG_DESC = "description"
 private const val ARG_DOCREF = "document_id"
 private const val ARG_LOGIN = "login"
 private const val ARG_EDITABLE = "editable"
+private const val ARG_IMAGEREF = "image_reference"
 
 private var arguments: Bundle? = null
 
@@ -243,11 +248,8 @@ class StoryActivity : AppCompatActivity() {
         Log.w(TAG, "retrieving data for imageGallery failed", e)
     }
 
-    val REQUEST_IMAGE_CAPTURE = 1001
+
     var IMAGE_NAME= ""
-    val LIBRARY_REQUEST = 1002
-    val REQUEST_STORAGE_CAMERA = 1003
-    val REQUEST_STORAGE_SELECT = 1004
 
     private fun dispatchTakePictureIntent() {
         Intent(MediaStore.ACTION_IMAGE_CAPTURE).also { takePictureIntent ->
@@ -329,6 +331,7 @@ class StoryActivity : AppCompatActivity() {
             ll_imageGallery?.addView(imageView, 0)
             val imageRef = storage.reference.child(imageName)
             val findView = findViewById<ImageView>(id)
+            findView.setOnClickListener(displayLargeImage())
             GlideApp.with(this).load(imageRef).into(findView)
 
 
@@ -340,6 +343,18 @@ class StoryActivity : AppCompatActivity() {
             // Set the Image in ImageView after decoding the String
 
 
+        }
+    }
+
+    private fun displayLargeImage(): View.OnClickListener = View.OnClickListener {view->
+        if (state == ActivityState.display) {
+            val ll: LinearLayout = view.parent as LinearLayout
+            val index = ll.indexOfChild(view)
+            Log.w(TAG, "index: ${index}")
+            val intent = Intent(this, ImageGalleryActivity::class.java)
+            intent.putExtra(ARG_DOCREF, docref)
+            intent.putExtra(ARG_IMAGEREF, index)
+            startActivity(intent)
         }
     }
 
