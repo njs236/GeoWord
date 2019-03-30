@@ -75,6 +75,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
                     .addOnSuccessListener(retrieveMarkerSuccessListener())
                     .addOnFailureListener(retrieveMarkerFailureListener())
             }
+            db.collection("notes")
+                .whereEqualTo("user", auth.currentUser!!.uid)
+                .whereEqualTo("latlng", point)
+                .get()
+                .addOnSuccessListener(retrieveMarkerSuccessListener())
+                .addOnFailureListener(retrieveMarkerFailureListener())
+
         }
 
         return true
