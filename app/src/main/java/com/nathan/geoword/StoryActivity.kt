@@ -33,6 +33,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.*
 import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageException
 import com.nathan.geoword.Static.Companion.LIBRARY_REQUEST
 import com.nathan.geoword.Static.Companion.REQUEST_IMAGE_CAPTURE
 import com.nathan.geoword.Static.Companion.REQUEST_STORAGE_CAMERA
@@ -100,6 +101,8 @@ class StoryActivity : AppCompatActivity() {
         return ActivityState.display
     }
 
+    private lateinit var fabDelete: FloatingActionButton
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // determine what layout to show depending on edit or new
@@ -138,6 +141,8 @@ class StoryActivity : AppCompatActivity() {
             fab = findViewById(R.id.fab)
             fab?.setOnClickListener(fabNewClickListener())
             newImage?.setOnClickListener(newImageClickListener())
+            fabDelete = findViewById(R.id.fabDelete)
+            fabDelete.hide()
         } else if (state == ActivityState.edit) {
             setContentView(R.layout.activity_story_new)
             titleEditable = findViewById(R.id.editTextTitle)
@@ -154,6 +159,8 @@ class StoryActivity : AppCompatActivity() {
             fab?.setOnClickListener(fabEditClickListener())
 
             newImage?.setOnClickListener(newImageClickListener())
+            fabDelete = findViewById(R.id.fabDelete)
+            fabDelete.setOnClickListener(fabDeleteClickListener())
 
         } else {
             setContentView(R.layout.activity_story)
@@ -229,6 +236,72 @@ class StoryActivity : AppCompatActivity() {
         }
     }
 
+    private fun deleteImageFromStorage(imageName: String?) {
+        if (imageName != null) {
+            val ref = storage.reference
+            val delete = ref.child(imageName)
+            delete.delete().addOnSuccessListener {
+                Log.w(TAG, "deleted image: ${imageName}")
+            }
+                .addOnFailureListener { e ->
+                    Log.d(TAG, "error deleting image.", e)
+                }
+        }
+    }
+
+    private fun deleteNoteFromDatabase() {
+        db
+            .collection("notes")
+            .document(docref)
+            .delete()
+            .addOnSuccessListener {
+                Log.w(TAG, "successfully deleted note from database")
+                val intent = Intent(this, MapsActivity::class.java)
+                startActivity(intent)}
+            .addOnFailureListener { e->
+                Log.d(TAG, "had an error deleting document from database:", e)
+                val intent = Intent(this, MapsActivity::class.java)
+                startActivity(intent)}
+    }
+
+    private fun fabDeleteClickListener(): View.OnClickListener?  = View.OnClickListener{view->
+        // call delete function of document and then go back to mapactivity
+        createAlertForDeletingNote()
+
+    }
+
+    private fun confirmYesDeleteNote() {
+        db.collection("notes").document(docref).collection("images").get()
+            .addOnSuccessListener { querySnapshot->
+                var count = 0
+                var size = querySnapshot.documents.size
+                for (document in querySnapshot) {
+                    val imageName = document.getString("name")
+                    val ref = storage.reference
+                    val delete = ref.child(imageName!!)
+                    delete.delete().addOnSuccessListener {
+                        Log.w(TAG, "deleted image: ${imageName}")
+                        count++
+                        if (count == size) {
+                            deleteNoteFromDatabase()
+                        }
+                    }
+                        .addOnFailureListener { e->
+                            if (e is StorageException) {
+                                count++
+                            }
+                            if (count == size) {
+                                deleteNoteFromDatabase()
+                            }
+
+                            Log.d(TAG, "error deleting image.", e)
+
+                        }
+                }
+            }
+
+    }
+
     fun newImageClickListener(): View.OnClickListener = View.OnClickListener { click->
         // intent for camera gallery.
         createAlertForAddingImage()
@@ -270,6 +343,7 @@ class StoryActivity : AppCompatActivity() {
                         "com.nathan.geoword.fileprovider",
                         it
                     )
+                    Log.w(TAG, "photoURI String: ${photoURI.path}")
                     takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
                     startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
                 }
@@ -292,28 +366,35 @@ class StoryActivity : AppCompatActivity() {
     }
 
     var mCurrentPhotoPath: String = ""
+    var mCurrentPhotoName: String = ""
     var redundantImageName: String = ""
     var imagePhotoPathArray: ArrayList<String> = ArrayList()
+    var imagePhotoNameArray: ArrayList<String> = ArrayList()
 
     @Throws(IOException::class)
     private fun createImageFile(): File {
         // Create an image file name
         val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
         val storageDir: File = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
-        redundantImageName = "JPEG_${timeStamp}_.jpg"
-        return File.createTempFile(
-            "JPEG_${timeStamp}_", /* prefix */
+        val userId = auth.currentUser!!.uid
+        redundantImageName = "JPEG_${userId}_${timeStamp}_.jpg"
+        val file = File.createTempFile(
+            "JPEG_${userId}_${timeStamp}_", /* prefix */
             ".jpg", /* suffix */
             storageDir /* directory */
         ).apply {
             // Save a file: path for use with ACTION_VIEW intents
             mCurrentPhotoPath = absolutePath
         }
+        mCurrentPhotoName = file.name
+        Log.w(TAG, "File: absolutePath: ${file.absolutePath}")
+        return file
     }
 
     private fun generateImageName() : String {
         val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
-        return "JPEG_${timeStamp}_.jpg"
+        val userId = auth.currentUser!!.uid
+        return "JPEG_${userId}_${timeStamp}_.jpg"
     }
 
     fun displayImageInGallery(imageName: String?) {
@@ -356,6 +437,20 @@ class StoryActivity : AppCompatActivity() {
             intent.putExtra(ARG_IMAGEREF, index)
             startActivity(intent)
         }
+    }
+
+    private fun createAlertForDeletingNote() {
+        val items = arrayOf<CharSequence>(getString(R.string.yes), getString(R.string.no))
+        val builder = AlertDialog.Builder(this@StoryActivity)
+        builder.setTitle("Are you sure you want to delete note?")
+        builder.setItems(items) { dialog, item ->
+            if (items[item] == getString(R.string.yes)) {
+                    confirmYesDeleteNote()
+                } else if (items[item] == getString(R.string.no)){
+                    dialog.dismiss()
+            }
+        }
+        builder.show()
     }
 
     private fun createAlertForAddingImage() {
@@ -418,12 +513,16 @@ class StoryActivity : AppCompatActivity() {
                 // Set the Image in ImageView after decoding the String
                 imageView.setImageBitmap(BitmapFactory
                     .decodeFile(mCurrentPhotoPath))
+                Log.w(TAG, "takePicture: path: ${mCurrentPhotoPath}")
                 imageView.layoutParams = ViewGroup.LayoutParams(240, 240)
+                imageView.setBackground(getDrawable(R.drawable.dotted))
                 ll_imageGallery?.addView(imageView, 0)
                 if (state == ActivityState.new) {
                     imagePhotoPathArray.add(mCurrentPhotoPath)
+                    imagePhotoNameArray.add(mCurrentPhotoName)
+                    Log.w(TAG, "takePicture: path: ${imagePhotoPathArray[imagePhotoPathArray.size -1]}")
                 } else {
-                    storeImageOnFirebaseStorage(mCurrentPhotoPath)
+                    storeImageOnFirebaseStorage(mCurrentPhotoPath, null)
                 }
 
 
@@ -455,11 +554,12 @@ class StoryActivity : AppCompatActivity() {
                 imageView.setImageBitmap(BitmapFactory
                     .decodeFile(imgDecodableString))
                 imageView.layoutParams = ViewGroup.LayoutParams(240, 240)
+                imageView.setBackground(getDrawable(R.drawable.dotted))
                 ll_imageGallery?.addView(imageView, 0)
                 if (state==ActivityState.new) {
                     imagePhotoPathArray.add(imgDecodableString!!)
                 } else {
-                    storeImageOnFirebaseStorage(imgDecodableString)
+                    storeImageOnFirebaseStorage(imgDecodableString, null)
                 }
 
 			} else {
@@ -473,10 +573,17 @@ class StoryActivity : AppCompatActivity() {
 
 	}
 
-    private fun storeImageOnFirebaseStorage(imagePath: String?) {
+    private fun storeImageOnFirebaseStorage(imagePath: String?, fileName: String?) {
         if (imagePath != null) {
             val storageRef = storage.reference
-            val name = generateImageName()
+
+            var name = ""
+            if (fileName != null) {
+                name = fileName
+            } else {
+                name = generateImageName()
+            }
+            Log.w(TAG, "importing to Firestore: ${name}")
             val imageRef = storageRef.child(name)
             val image = HashMap<String, Any>()
             image["name"] = name
@@ -582,8 +689,11 @@ class StoryActivity : AppCompatActivity() {
     fun addNoteSuccessListener(): OnSuccessListener<DocumentReference> = OnSuccessListener { documentReference->
         Log.d(TAG, "DocumentSnapshot added with ID: " + documentReference.id)
         docref = documentReference.id
+        var count = 0
         for (document in imagePhotoPathArray) {
-            storeImageOnFirebaseStorage(document)
+            Log.w(TAG, "addNoteSuccess: document: ${document}")
+            storeImageOnFirebaseStorage(document, imagePhotoNameArray[count])
+            count++
         }
     }
 

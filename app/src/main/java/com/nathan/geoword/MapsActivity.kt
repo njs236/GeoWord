@@ -1,6 +1,7 @@
 package com.nathan.geoword
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -11,6 +12,7 @@ import android.support.design.widget.NavigationView
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.util.Log
+import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -57,8 +59,22 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         //TODO: Marker is dragged
     }
 
+
     override fun onMarkerClick(p0: Marker?): Boolean {
         //TODO: when clicking on a marker, load story activity
+        p0!!.showInfoWindow()
+
+        return true
+    }
+
+    private fun onInfoWindowClick(): GoogleMap.OnInfoWindowClickListener = GoogleMap.OnInfoWindowClickListener { p0 ->
+
+        loadNote(p0)
+    }
+
+    /*old marker code
+    **/
+    private fun loadNote(p0: Marker?) {
         var point = GeoPoint(p0!!.position.latitude, p0!!.position.longitude)
         db.collection("public").document(auth.currentUser!!.uid).get().addOnSuccessListener { documentSnapshot ->
             var map: HashMap<String, Boolean>? = null
@@ -83,9 +99,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
                 .addOnFailureListener(retrieveMarkerFailureListener())
 
         }
-
-        return true
     }
+
+
+
 
     override fun onMapClick(p0: LatLng?) {
         //TODO: when clicking on map, load story activity
@@ -107,7 +124,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         Log.w(TAG, "Error adding document", e)
 
     }
-
+    var avatars: HashMap<String, String> = HashMap()
     private lateinit var mMap: GoogleMap
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
@@ -116,7 +133,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     private lateinit var avatar: ImageView
     private lateinit var navView: NavigationView
     private val TAG = this.javaClass.simpleName
-    private var markers = ArrayList<LatLng>()
+    private var markers = ArrayList<MarkerData>()
     private var zoomProperty: Float = -1f
     private var locationSetting: Boolean = false
     private lateinit var storage: FirebaseStorage
@@ -129,6 +146,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         setContentView(R.layout.activity_maps)
         setTitle(R.string.title_activity_maps)
         navView = findViewById(R.id.nav_view)
+        markers.clear()
+        avatars.clear()
         avatar = navView.getHeaderView(0).findViewById(R.id.nav_imageView)
         avatar.setOnClickListener{ click->
 
@@ -184,13 +203,67 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
 
     }
 
+    private var avatarName: String? = null
+
     fun displayAvatar(imageName: String?) {
+        avatarName = imageName
         if (imageName != null) {
             Log.w(TAG, "imageName: $imageName")
 
 
             val imageRef = storage.reference.child(imageName)
             GlideApp.with(this).load(imageRef).into(avatar)
+        }
+    }
+
+    inner class CustomInfoWindow(context: Activity): GoogleMap.InfoWindowAdapter {
+        private var context: Activity
+        private lateinit var title: TextView
+        private lateinit var subtitle: TextView
+        private lateinit var avatar: ImageView
+        private lateinit var storage: FirebaseStorage
+        private lateinit var db: FirebaseFirestore
+        private lateinit var auth: FirebaseAuth
+        private var avatarName : String? = null
+        init {
+            this.context = context
+        }
+
+
+        private val TAG: String = this.javaClass.simpleName
+
+        override fun getInfoContents(p0: Marker?): View? {
+            //TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+            val view = this.context.layoutInflater.inflate(R.layout.infowindow_note, null)
+            title = view.findViewById(R.id.infowindow_title)
+            subtitle = view.findViewById(R.id.infowindow_subtitle)
+            avatar = view.findViewById(R.id.infowindow_avatar)
+            storage = FirebaseStorage.getInstance()
+            auth = FirebaseAuth.getInstance()
+            for (marker in markers) {
+                if (marker.latlng == p0!!.position) {
+                    Log.w(TAG, "loading contents of window")
+                    val titleText = marker.title
+                    Log.w(TAG, "title: ${titleText}")
+                    Log.w(TAG, "avatar: ${marker.image}")
+                    title.setText(titleText)
+                    subtitle.setText("")
+                    if (marker.image != "") {
+                        val imageRef = storage.reference.child(marker.image!!)
+                        GlideApp.with(context).load(imageRef).into(avatar)
+                    }
+                }
+            }
+
+
+
+            return view
+
+        }
+
+
+        override fun getInfoWindow(p0: Marker?): View? {
+            return null
         }
     }
 
@@ -226,6 +299,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         mMap.setOnMapClickListener(this)
         mMap.setOnMarkerClickListener(this)
         mMap.setOnMarkerDragListener(this)
+        mMap.setInfoWindowAdapter(CustomInfoWindow(this))
+        mMap.setOnInfoWindowClickListener(onInfoWindowClick())
 
         updateLocationUI()
 
@@ -242,26 +317,41 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         db.collection("users")
             .document(auth.currentUser!!.uid)
             .addSnapshotListener(locationProperty())
-        // get your markers.
-        db.collection("notes")
-            .whereEqualTo("user", auth.currentUser!!.uid)
-            .orderBy("cr_date", Query.Direction.ASCENDING)
-            .get()
-            .addOnSuccessListener(retrieveMarkersSuccessListener())
-            .addOnFailureListener(retrieveMarkersFailureListener())
 
-        // get your friends markers.
+
+        // get your markers.
         db.collection("public").document(auth.currentUser!!.uid).get().addOnSuccessListener {documentSnapshot->
             var map: HashMap<String, Boolean>? = null
+
             if (documentSnapshot != null) {
                 map = documentSnapshot.get("friends") as HashMap<String, Boolean>
+                if (documentSnapshot.getString("avatar")!= null) {
+                    val avatar = documentSnapshot.getString("avatar")
+                    avatars.put(auth.currentUser!!.uid, avatar!!)
+                }
             }
+            db.collection("notes")
+                .whereEqualTo("user", auth.currentUser!!.uid)
+                .orderBy("cr_date", Query.Direction.ASCENDING)
+                .get()
+                .addOnSuccessListener(retrieveMarkersSuccessListener())
+                .addOnFailureListener(retrieveMarkersFailureListener())
             for ((friend, key) in map!!) {
-                db.collection("notes")
-                    .whereEqualTo("user", friend)
-                    .get()
-                    .addOnSuccessListener(retrieveMarkersSuccessListener())
-                    .addOnFailureListener(retrieveMarkersFailureListener())
+                db.collection("public").document(friend).get().addOnSuccessListener { documentSnapshot ->
+                    if (documentSnapshot != null) {
+                        if (documentSnapshot.getString("avatar")!= null) {
+                            val avatar = documentSnapshot.getString("avatar")
+                            avatars.put(friend, avatar!!)
+
+                        }
+                        db.collection("notes")
+                            .whereEqualTo("user", friend)
+                            .get()
+                            .addOnSuccessListener(retrieveMarkersSuccessListener())
+                            .addOnFailureListener(retrieveMarkersFailureListener())
+                    }
+                }
+
             }
 
         }
@@ -271,18 +361,31 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
 
     fun retrieveMarkersSuccessListener(): OnSuccessListener<QuerySnapshot> = OnSuccessListener { result ->
 
+
         for (document in result) {
             //Log.d(TAG, document.id + " =>" + document.data)
             val point = document.getGeoPoint("latlng")
             val title = document.getString("title")
             val latlng = LatLng(point!!.latitude, point!!.longitude)
-            mMap.addMarker(MarkerOptions().position(latlng)
+            var avatar = ""
+            if (document.getString("user") != null) {
+
+
+                    val thisKey = document.getString("user")!!
+                    for ((key, value) in avatars) {
+                        if (key == thisKey) {
+                            avatar = value
+                        }
+                    }
+
+            }
+            val marker = mMap.addMarker(MarkerOptions().position(latlng)
                 .title(title)
                 .icon(BitmapDescriptorFactory.fromResource(R.drawable.person)))
-            markers.add(latlng)
+            markers.add(MarkerData(title!!, "",avatar , latlng))
         }
         if (markers.count() > 0 && zoomProperty != -1f) {
-            val lastRecord = markers[markers.count() - 1]
+            val lastRecord = markers[markers.count() - 1].latlng
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(lastRecord, zoomProperty))
         } else {
 
@@ -342,7 +445,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
             if (zoomProperty != newZoom.toFloat()) {
                 zoomProperty = newZoom.toFloat()
                 if (markers.count() > 0) {
-                    val lastRecord = markers[markers.count() - 1]
+                    val lastRecord = markers[markers.count() - 1].latlng
                     mDefaultLocation = lastRecord
                     mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(lastRecord, zoomProperty))
                 }
