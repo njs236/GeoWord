@@ -146,8 +146,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         setContentView(R.layout.activity_maps)
         setTitle(R.string.title_activity_maps)
         navView = findViewById(R.id.nav_view)
-        markers.clear()
-        avatars.clear()
         avatar = navView.getHeaderView(0).findViewById(R.id.nav_imageView)
         avatar.setOnClickListener{ click->
 
@@ -310,6 +308,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         val sydney = LatLng(-34.0, 151.0)
         //mMap.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
         markers.clear()
+        avatars.clear()
 
         db.collection("users")
             .document(auth.currentUser!!.uid)
@@ -368,6 +367,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
             val title = document.getString("title")
             val latlng = LatLng(point!!.latitude, point!!.longitude)
             var avatar = ""
+            val cr_date = document.getTimestamp("cr_date")
+
+
             if (document.getString("user") != null) {
 
 
@@ -382,7 +384,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
             val marker = mMap.addMarker(MarkerOptions().position(latlng)
                 .title(title)
                 .icon(BitmapDescriptorFactory.fromResource(R.drawable.person)))
-            markers.add(MarkerData(title!!, "",avatar , latlng))
+            markers.add(MarkerData(title!!, "",cr_date!!.toDate(), avatar , latlng))
+
+
         }
         if (markers.count() > 0 && zoomProperty != -1f) {
             val lastRecord = markers[markers.count() - 1].latlng
