@@ -2,6 +2,7 @@ package com.nathan.geoword
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -13,8 +14,10 @@ import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.util.Log
 import android.view.View
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 
@@ -62,9 +65,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
 
     override fun onMarkerClick(p0: Marker?): Boolean {
         //TODO: when clicking on a marker, load story activity
+        mLastShownInfoWindowMarker = p0!!
         p0!!.showInfoWindow()
 
-        return true
+        return false
     }
 
     private fun onInfoWindowClick(): GoogleMap.OnInfoWindowClickListener = GoogleMap.OnInfoWindowClickListener { p0 ->
@@ -100,18 +104,33 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
 
         }
     }
+    var mLastShownInfoWindowMarker: Marker? = null
+
 
 
 
 
     override fun onMapClick(p0: LatLng?) {
         //TODO: when clicking on map, load story activity
-        val intent = Intent(this, StoryActivity::class.java)
-        intent.putExtra(ARG_PARAM1, 1)
-        intent.putExtra(ARG_LAT, p0!!.latitude)
-        intent.putExtra(ARG_LNG, p0!!.longitude)
-        startActivity(intent)
+        if (settingNote) {
+            createAlertForCreatingNote(p0)
 
+        } else {
+            if (mLastShownInfoWindowMarker != null && mLastShownInfoWindowMarker!!.isInfoWindowShown) {
+                mLastShownInfoWindowMarker?.hideInfoWindow()
+                mLastShownInfoWindowMarker = null
+            }
+
+        }
+
+    }
+
+    override fun onBackPressed() {
+        if (mLastShownInfoWindowMarker != null && mLastShownInfoWindowMarker!!.isInfoWindowShown) {
+            mLastShownInfoWindowMarker!!.hideInfoWindow()
+        } else {
+            super.onBackPressed()
+        }
     }
 
     fun addMarkerSuccessListener() : OnSuccessListener<DocumentReference> = OnSuccessListener { documentReference->
@@ -132,10 +151,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     private lateinit var subTitleText: TextView
     private lateinit var avatar: ImageView
     private lateinit var navView: NavigationView
+    private lateinit var flAddNote: FrameLayout
     private val TAG = this.javaClass.simpleName
     private var markers = ArrayList<MarkerData>()
     private var zoomProperty: Float = -1f
     private var locationSetting: Boolean = false
+    private var settingNote: Boolean = false
     private lateinit var storage: FirebaseStorage
 
     private lateinit var mFusedLocationProviderClient: FusedLocationProviderClient
@@ -146,6 +167,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         setContentView(R.layout.activity_maps)
         setTitle(R.string.title_activity_maps)
         navView = findViewById(R.id.nav_view)
+        flAddNote = findViewById(R.id.flAddNote)
+        flAddNote.setOnClickListener { view->
+            // TODO: Writing note function.
+            Toast.makeText(this@MapsActivity, "Click on map to create note", Toast.LENGTH_SHORT).show()
+            settingNote = true
+
+        }
         avatar = navView.getHeaderView(0).findViewById(R.id.nav_imageView)
         avatar.setOnClickListener{ click->
 
@@ -554,5 +582,29 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         } catch (e: SecurityException) {
             Log.e(TAG, "exception:", e)
         }
+    }
+
+    private fun createAlertForCreatingNote(p0: LatLng?) {
+        val items = arrayOf<CharSequence>(getString(R.string.create_note), getString(R.string.cancel))
+        val builder = AlertDialog.Builder(this@MapsActivity)
+        builder.setTitle("Are you sure you want to delete note?")
+        builder.setItems(items) { dialog, item ->
+            if (items[item] == getString(R.string.create_note)) {
+                createNote(p0)
+                settingNote = false
+            } else if (items[item] == getString(R.string.cancel)){
+                settingNote = false
+                dialog.dismiss()
+            }
+        }
+        builder.show()
+    }
+
+    private fun createNote(p0: LatLng?) {
+        val intent = Intent(this, StoryActivity::class.java)
+        intent.putExtra(ARG_PARAM1, 1)
+        intent.putExtra(ARG_LAT, p0!!.latitude)
+        intent.putExtra(ARG_LNG, p0.longitude)
+        startActivity(intent)
     }
 }

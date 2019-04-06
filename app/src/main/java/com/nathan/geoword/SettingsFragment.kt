@@ -29,6 +29,7 @@ import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.collections.HashMap
 
 
 // TODO: Rename parameter arguments, choose names that match
@@ -101,13 +102,31 @@ class SettingsFragment : Fragment() {
                     if (documentSnapshot.get("avatar") != null) {
                         displayAvatar(documentSnapshot.getString("avatar"))
                     }
+
                     if (documentSnapshot.getString("name")!= null) {
                         etSetName.setText(documentSnapshot.getString("name"))
                     }
                 }
             }
+
+            db.collection("users").document(auth.currentUser!!.uid).get().addOnSuccessListener { documentSnapshot ->
+                if (documentSnapshot != null) {
+                    if (documentSnapshot.getBoolean("location")!= null) {
+                        checkBoxLocation.isChecked = documentSnapshot.getBoolean("location")!!
+                    }
+                }
+            }
         }
         return view
+    }
+
+    fun finishPasswordAndRespond(map: HashMap<String, Any>?) {
+        etOldPassword.setText("")
+        etConfirmPassword.setText("")
+        etNewPassword.setText("")
+        if (map != null) {
+            onButtonPressed(map)
+        }
     }
 
     fun submitSettings(): View.OnClickListener = View.OnClickListener { click->
@@ -142,6 +161,10 @@ class SettingsFragment : Fragment() {
                                     Toast.makeText(context!!, "Something went wrong. Enter password information again.", Toast.LENGTH_SHORT).show()
                                 } else {
                                     Log.w(TAG, "Password updated successfully")
+                                    Toast.makeText(context!!, "Password updated successfully!", Toast.LENGTH_SHORT).show()
+                                    val map = HashMap<String, Any>()
+                                    map.put("submitAndGoToHome", true)
+                                    finishPasswordAndRespond(map)
                                     db.collection("public").document(user.uid).update("name", name)
                                         .addOnSuccessListener { Log.w(TAG, "name updated successfully") }
                                         .addOnFailureListener { e-> Log.d(TAG, "name update fail.", e) }
@@ -153,6 +176,7 @@ class SettingsFragment : Fragment() {
 
                         } else {
                             Toast.makeText(context!!, "Authentication Failed", Toast.LENGTH_SHORT).show()
+                            finishPasswordAndRespond(null)
                         }
                     }
                 }
@@ -405,8 +429,8 @@ class SettingsFragment : Fragment() {
         }
 
     // TODO: Rename method, update argument and hook method into UI event
-    fun onButtonPressed(uri: Uri) {
-        listener?.onSettingsInteraction(uri)
+    fun onButtonPressed(map: HashMap<String, Any>) {
+        listener?.onSettingsInteraction(map)
     }
 
     override fun onAttach(context: Context) {
@@ -439,7 +463,7 @@ class SettingsFragment : Fragment() {
      */
     interface OnFragmentInteractionListener {
         // TODO: Update argument type and name
-        fun onSettingsInteraction(uri: Uri)
+        fun onSettingsInteraction(map: HashMap<String, Any>)
     }
 
     companion object {

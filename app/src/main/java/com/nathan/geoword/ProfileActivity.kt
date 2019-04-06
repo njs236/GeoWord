@@ -24,8 +24,11 @@ class ProfileActivity : AppCompatActivity(),
     AddGroupFragment.OnGroupInteractionListener,
     AddFriendFragment.OnFriendInteractionListener,
 SettingsFragment.OnFragmentInteractionListener{
-    override fun onSettingsInteraction(uri: Uri) {
+    override fun onSettingsInteraction(map: HashMap<String, Any>) {
         //TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        if (map.containsKey("submitAndGoHome")) {
+            goHome()
+        }
     }
 
     override fun onFriendInteraction(uri: Uri) {
@@ -38,6 +41,14 @@ SettingsFragment.OnFragmentInteractionListener{
 
     override fun onHomeInteraction(uri: Uri) {
         //TODO:("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    fun goHome() {
+        var frag = ProfileHomeFragment()
+        var fragmentTransaction = supportFragmentManager.beginTransaction()
+        fragmentTransaction.replace(R.id.fragment_layout, frag)
+        fragmentTransaction.addToBackStack(null)
+        fragmentTransaction.commit()
     }
 
     private var mSelectedItem: Int = -1
