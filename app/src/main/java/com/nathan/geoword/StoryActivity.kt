@@ -272,33 +272,37 @@ class StoryActivity : AppCompatActivity() {
 
     private fun confirmYesDeleteNote() {
         db.collection("notes").document(docref).collection("images").get()
-            .addOnSuccessListener { querySnapshot->
+            .addOnSuccessListener { querySnapshot ->
                 var count = 0
                 var size = querySnapshot.documents.size
-                for (document in querySnapshot) {
-                    val imageName = document.getString("name")
-                    val ref = storage.reference
-                    val delete = ref.child(imageName!!)
-                    delete.delete().addOnSuccessListener {
-                        Log.w(TAG, "deleted image: ${imageName}")
-                        count++
-                        if (count == size) {
-                            deleteNoteFromDatabase()
-                        }
-                    }
-                        .addOnFailureListener { e->
-                            if (e is StorageException) {
-                                count++
-                            }
+                if (querySnapshot.documents.count() > 0) {
+                    for (document in querySnapshot) {
+                        val imageName = document.getString("name")
+                        val ref = storage.reference
+                        val delete = ref.child(imageName!!)
+                        delete.delete().addOnSuccessListener {
+                            Log.w(TAG, "deleted image: ${imageName}")
+                            count++
                             if (count == size) {
                                 deleteNoteFromDatabase()
                             }
-
-                            Log.d(TAG, "error deleting image.", e)
-
                         }
+                            .addOnFailureListener { e ->
+                                if (e is StorageException) {
+                                    count++
+                                }
+                                if (count == size) {
+                                    deleteNoteFromDatabase()
+                                }
+
+                                Log.d(TAG, "error deleting image.", e)
+
+                            }
+                    }
+                } else {
+                    deleteNoteFromDatabase()
                 }
-            }
+        }
 
     }
 

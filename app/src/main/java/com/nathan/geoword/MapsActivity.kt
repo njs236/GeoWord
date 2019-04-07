@@ -128,6 +128,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     override fun onBackPressed() {
         if (mLastShownInfoWindowMarker != null && mLastShownInfoWindowMarker!!.isInfoWindowShown) {
             mLastShownInfoWindowMarker!!.hideInfoWindow()
+            mLastShownInfoWindowMarker = null
         } else {
             super.onBackPressed()
         }
@@ -143,7 +144,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         Log.w(TAG, "Error adding document", e)
 
     }
-    var avatars: HashMap<String, String> = HashMap()
+    var public: HashMap<String, ArrayList<String>> = HashMap()
     private lateinit var mMap: GoogleMap
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
@@ -272,8 +273,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
                     val titleText = marker.title
                     Log.w(TAG, "title: ${titleText}")
                     Log.w(TAG, "avatar: ${marker.image}")
-                    title.setText(titleText)
-                    subtitle.setText("")
+                    title.setText(marker.author)
+                    subtitle.setText(marker.title)
                     if (marker.image != "") {
                         val imageRef = storage.reference.child(marker.image!!)
                         GlideApp.with(context).load(imageRef).into(avatar)
@@ -336,7 +337,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         val sydney = LatLng(-34.0, 151.0)
         //mMap.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
         markers.clear()
-        avatars.clear()
+        public.clear()
 
         db.collection("users")
             .document(auth.currentUser!!.uid)
@@ -352,10 +353,20 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
 
             if (documentSnapshot != null) {
                 map = documentSnapshot.get("friends") as HashMap<String, Boolean>
+                var avatar = ""
+                var name = ""
                 if (documentSnapshot.getString("avatar")!= null) {
-                    val avatar = documentSnapshot.getString("avatar")
-                    avatars.put(auth.currentUser!!.uid, avatar!!)
+                    avatar = documentSnapshot.getString("avatar")!!
                 }
+                if (documentSnapshot.getString("name")!= null) {
+
+                    name = documentSnapshot.getString("name")!!
+                }
+                    val item = ArrayList<String>()
+                    item.add(avatar)
+                    item.add(name)
+                    public.put(auth.currentUser!!.uid, item)
+
             }
             db.collection("notes")
                 .whereEqualTo("user", auth.currentUser!!.uid)
@@ -366,11 +377,19 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
             for ((friend, key) in map!!) {
                 db.collection("public").document(friend).get().addOnSuccessListener { documentSnapshot ->
                     if (documentSnapshot != null) {
+                        var avatar = ""
+                        var name = ""
                         if (documentSnapshot.getString("avatar")!= null) {
-                            val avatar = documentSnapshot.getString("avatar")
-                            avatars.put(friend, avatar!!)
-
+                            avatar = documentSnapshot.getString("avatar")!!
                         }
+                        if (documentSnapshot.getString("name")!= null) {
+
+                            name = documentSnapshot.getString("name")!!
+                        }
+                        val item = ArrayList<String>()
+                        item.add(avatar)
+                        item.add(name)
+                        public.put(friend, item)
                         db.collection("notes")
                             .whereEqualTo("user", friend)
                             .get()
@@ -395,6 +414,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
             val title = document.getString("title")
             val latlng = LatLng(point!!.latitude, point!!.longitude)
             var avatar = ""
+            var author = ""
             val cr_date = document.getTimestamp("cr_date")
 
 
@@ -402,9 +422,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
 
 
                     val thisKey = document.getString("user")!!
-                    for ((key, value) in avatars) {
+                    for ((key, item) in public) {
                         if (key == thisKey) {
-                            avatar = value
+                            avatar = item[0]
+                            author = item[1]
                         }
                     }
 
@@ -412,7 +433,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
             val marker = mMap.addMarker(MarkerOptions().position(latlng)
                 .title(title)
                 .icon(BitmapDescriptorFactory.fromResource(R.drawable.person)))
-            markers.add(MarkerData(title!!, "",cr_date!!.toDate(), avatar , latlng))
+            markers.add(MarkerData(title!!, author,cr_date!!.toDate(), avatar , latlng))
 
 
         }
