@@ -847,10 +847,16 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     val mHandler = Handler()
     val runnable: Runnable = Runnable {
         // DO SOMETHING
-        updateUserData()
+        val job = UpdateFromFirebase(this,handlerUpdateFirebase )
         doJob()
 
     }
+
+    val handlerUpdateFirebase = Handler(Handler.Callback {message->
+
+            false
+
+    })
 
 
 
