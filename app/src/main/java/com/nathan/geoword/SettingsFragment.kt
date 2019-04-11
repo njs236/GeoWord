@@ -60,6 +60,7 @@ class SettingsFragment : Fragment() {
     private lateinit var etSetName: EditText
     private lateinit var btnSubmitSettings: Button
     private lateinit var checkBoxLocation: CheckBox
+    private lateinit var checkBoxLowBandwidth: CheckBox
     private lateinit var db: FirebaseFirestore
     private lateinit var auth: FirebaseAuth
     private lateinit var activity: Activity
@@ -90,6 +91,7 @@ class SettingsFragment : Fragment() {
         btnSubmitSettings = view.findViewById(R.id.btnSubmitSettings)
         btnSubmitSettings.setOnClickListener(submitSettings())
         checkBoxLocation = view.findViewById(R.id.checkBoxLocation)
+        checkBoxLowBandwidth = view.findViewById(R.id.checkBoxLowBandwidth)
 
         auth = FirebaseAuth.getInstance()
         if (auth.currentUser != null) {
@@ -116,6 +118,10 @@ class SettingsFragment : Fragment() {
                     }
                 }
             }
+
+            checkBoxLowBandwidth.isChecked = getBoolean(context!!, LOW_BANDWIDTH)
+
+
         }
         return view
     }
@@ -141,6 +147,7 @@ class SettingsFragment : Fragment() {
         val email = auth.currentUser!!.email!!
         val user = auth.currentUser!!
         val location = checkBoxLocation.isChecked
+        val low_bandwidth = checkBoxLowBandwidth.isChecked
 
 
         if (newPassword != "") {
@@ -171,6 +178,7 @@ class SettingsFragment : Fragment() {
                                     db.collection("users").document(user.uid).update("location", location)
                                         .addOnSuccessListener { Log.w(TAG, "location setting updated successfully") }
                                         .addOnFailureListener { e-> Log.d(TAG, "location setting update fail.", e) }
+                                    setBoolean(context!!, low_bandwidth)
                                 }
                             }
 
@@ -189,6 +197,7 @@ class SettingsFragment : Fragment() {
             db.collection("users").document(user.uid).update("location", location)
                 .addOnSuccessListener { Log.w(TAG, "location setting updated successfully") }
                 .addOnFailureListener { e-> Log.d(TAG, "location setting update fail.", e) }
+            setBoolean(context!!, low_bandwidth)
         }
     }
 
@@ -484,5 +493,19 @@ class SettingsFragment : Fragment() {
                     putString(ARG_PARAM2, param2)
                 }
             }
+        const val PREF_FILE = "prefs"
+        const val LOW_BANDWIDTH = "low_bandwidth"
+
+        fun setBoolean(context: Context, boolean: Boolean) {
+            val sharedPreferences = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE)
+            sharedPreferences.edit().putBoolean(LOW_BANDWIDTH, boolean)
+            sharedPreferences.edit().apply()
+        }
+
+        fun getBoolean(context: Context, key: String) : Boolean{
+            val sharedPreferences = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE )
+            return sharedPreferences.getBoolean(key, false)
+
+        }
     }
 }
