@@ -44,6 +44,7 @@ object FirebaseBackupContract{
         const val COLUMN_NAME_NOTE_ID = "note_id"
         const val COLUMN_NAME_CREATED_AT = "created_at"
         const val COLUMN_NAME_NAME = "name"
+        const val COLUMN_NAME_IMAGE_ID = "image_id"
     }
 
 }
@@ -83,7 +84,8 @@ private const val SQL_CREATE_IMAGES_ENTRIES = "CREATE TABLE ${FirebaseBackupCont
         "${BaseColumns._ID} INTEGER PRIMARY KEY, " +
         "${FirebaseBackupContract.ImageEntry.COLUMN_NAME_CREATED_AT} INTEGER," +
         "${FirebaseBackupContract.ImageEntry.COLUMN_NAME_NAME} TEXT," +
-        "${FirebaseBackupContract.ImageEntry.COLUMN_NAME_NOTE_ID} TEXT)"
+        "${FirebaseBackupContract.ImageEntry.COLUMN_NAME_NOTE_ID} TEXT," +
+        "${FirebaseBackupContract.ImageEntry.COLUMN_NAME_IMAGE_ID} TEXT)"
 
 private const val SQL_DELETE_USER_ENTRIES = "DROP TABLE IF EXISTS ${FirebaseBackupContract.UserEntry.TABLE_NAME}"
 private const val SQL_DELETE_FRIENDS_ENTRIES = "DROP TABLE IF EXISTS ${FirebaseBackupContract.FriendsEntry.TABLE_NAME}"

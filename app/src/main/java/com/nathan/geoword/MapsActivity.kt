@@ -32,18 +32,15 @@ import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.tasks.OnFailureListener
 import com.google.android.gms.tasks.OnSuccessListener
-import com.google.android.gms.tasks.Task
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.*
 import com.google.firebase.firestore.EventListener
 import com.google.firebase.storage.FirebaseStorage
 import com.nathan.geoword.Static.Companion.PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION
 import com.nathan.geoword.db.FirebaseDBForSqlite
-import com.nathan.geoword.db.FriendEntry
-import com.nathan.geoword.db.NoteEntry
-import com.nathan.geoword.db.UserEntry
+import com.nathan.geoword.db.Note
+import com.nathan.geoword.db.User
 import java.util.*
 
 private const val ARG_PARAM1 = "param1"
@@ -193,7 +190,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     private lateinit var avatar: ImageView
     private lateinit var navView: NavigationView
     private lateinit var flAddNote: FrameLayout
-    private var localUser: UserEntry? = null
+    private var localUser: User? = null
     private val TAG = this.javaClass.simpleName
     private var markers = ArrayList<MarkerData>()
     private var zoomProperty: Float = -1f
@@ -239,6 +236,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
             db = FirebaseFirestore.getInstance()
             localDB = FirebaseDBForSqlite(this)
             storage = FirebaseStorage.getInstance()
+            mHandler.post(runnable)
             // search sqlite for user data
             if (getBoolean(this, LOW_BANDWIDTH)) {
                localUser = localDB.getUser(auth.currentUser!!.uid)
@@ -560,7 +558,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
 
     }
 
-    fun retrieveMarkersLocalDB(friendsNotes: ArrayList<NoteEntry>) {
+    fun retrieveMarkersLocalDB(friendsNotes: ArrayList<Note>) {
         for (note in friendsNotes) {
             var avatar = ""
             var author = ""
@@ -625,7 +623,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     }
 
 
-    fun retrieveMarkerLocalDB(marker: NoteEntry) {
+    fun retrieveMarkerLocalDB(marker: Note) {
         val intent = Intent(this, StoryActivity::class.java)
         Log.d(TAG, marker.note_id + " =>" + marker)
 
@@ -848,12 +846,31 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     val runnable: Runnable = Runnable {
         // DO SOMETHING
         val job = UpdateFromFirebase(this,handlerUpdateFirebase )
+        job.execute()
         doJob()
 
     }
 
     val handlerUpdateFirebase = Handler(Handler.Callback {message->
+        if (message.what == RESULT_COMPLETED) {
+            when (message.arg1) {
+                STATUS_USER ->{
+            }
+                STATUS_FRIEND ->{}
 
+
+                STATUS_NOTE ->{}
+
+                STATUS_IMAGE ->{}
+            }
+
+        } else if (message.what == IN_PROGRESS) {
+
+        } else if (message.what == RESULT_ERROR) {
+
+        } else if (message.what == RESULT_EMPTY_USER) {
+
+        }
             false
 
     })
@@ -875,6 +892,17 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
             return sharedPreferences.getBoolean(key, false)
 
         }
+        const val RESULT_ERROR = -1
+        const val IN_PROGRESS = 1
+        const val RESULT_COMPLETED = 0
+        const val RESULT_EMPTY_USER = 2
+        const val RESULT_EMPTY_FRIEND = 3
+
+
+        const val STATUS_USER = 0
+        const val STATUS_NOTE = 1
+        const val STATUS_IMAGE = 2
+        const val STATUS_FRIEND = 3
     }
 
 

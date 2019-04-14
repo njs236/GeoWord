@@ -2,7 +2,7 @@ package com.nathan.geoword.db
 
 import java.util.*
 
-class UserEntry (newUserId: String, newLocation: Boolean, newZoom: Float, newName: String, newEmail: String, newAvatar: String, newDate: Date) {
+class User (newUserId: String, newLocation: Boolean, newZoom: Float, newName: String, newEmail: String, newAvatar: String, newDate: Date) {
 
     var user_id : String
     var location: Boolean

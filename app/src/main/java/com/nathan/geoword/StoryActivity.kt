@@ -592,6 +592,7 @@ class StoryActivity : AppCompatActivity() {
             val image = HashMap<String, Any>()
             image["name"] = name
             image["cr_date"] = Timestamp.now()
+            image["note_id"] = docref
 
             db.collection("notes")
                 .document(docref)

@@ -2,7 +2,7 @@ package com.nathan.geoword.db
 
 import java.util.*
 
-class FriendEntry(newDate: Date, newFriendID: String, newAvatar:String, newName: String, newEmail: String, newUserID: String) {
+class Friend(newDate: Date, newFriendID: String, newAvatar:String, newName: String, newEmail: String, newUserID: String) {
 
     var friend_id: String
     var created_at: Date

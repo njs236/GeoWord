@@ -3,7 +3,7 @@ package com.nathan.geoword.db
 import com.google.firebase.firestore.GeoPoint
 import java.util.*
 
-class NoteEntry(newDate: Date, newDescription: String, newLat: Double, newLng: Double, newPerson: String, newTitle: String, newUserID: String, newNoteId: String) {
+class Note(newDate: Date, newDescription: String, newLat: Double, newLng: Double, newPerson: String, newTitle: String, newUserID: String, newNoteId: String) {
 
     var created_at: Date
     var description: String
