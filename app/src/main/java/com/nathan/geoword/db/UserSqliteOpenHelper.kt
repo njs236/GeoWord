@@ -4,6 +4,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.provider.BaseColumns
+import android.util.Log
 
 object FirebaseBackupContract{
     object UserEntry: BaseColumns {
@@ -50,42 +51,42 @@ object FirebaseBackupContract{
 }
 
 private const val SQL_CREATE_USER_ENTRIES = "CREATE TABLE ${FirebaseBackupContract.UserEntry.TABLE_NAME} (" +
-        "${BaseColumns._ID} INTEGER PRIMARY KEY," +
-        "${FirebaseBackupContract.UserEntry.COLUMN_NAME_CREATED_AT} INTEGER," +
-        "${FirebaseBackupContract.UserEntry.COLUMN_NAME_DEFAULTZOOM} INTEGER," +
-        "${FirebaseBackupContract.UserEntry.COLUMN_NAME_LOCATION} INTEGER," +
-        "${FirebaseBackupContract.UserEntry.COLUMN_NAME_USER_ID} TEXT," +
-        "${FirebaseBackupContract.UserEntry.COLUMN_NAME_EMAIL} TEXT," +
-        "${FirebaseBackupContract.UserEntry.COLUMN_NAME_NAME} TEXT," +
-"${FirebaseBackupContract.UserEntry.COLUMN_NAME_AVATAR} TEXT)"
+        "${BaseColumns._ID} INTEGER PRIMARY KEY, " +
+        "${FirebaseBackupContract.UserEntry.COLUMN_NAME_CREATED_AT} INTEGER, " +
+        "${FirebaseBackupContract.UserEntry.COLUMN_NAME_DEFAULTZOOM} INTEGER, " +
+        "${FirebaseBackupContract.UserEntry.COLUMN_NAME_LOCATION} INTEGER, " +
+        "${FirebaseBackupContract.UserEntry.COLUMN_NAME_USER_ID} TEXT, " +
+        "${FirebaseBackupContract.UserEntry.COLUMN_NAME_EMAIL} TEXT, " +
+        "${FirebaseBackupContract.UserEntry.COLUMN_NAME_NAME} TEXT, " +
+        "${FirebaseBackupContract.UserEntry.COLUMN_NAME_AVATAR} TEXT );"
 
 private const val SQL_CREATE_FRIENDS_ENTRIES = "CREATE TABLE ${FirebaseBackupContract.FriendsEntry.TABLE_NAME} (" +
-        "${BaseColumns._ID} INTEGER PRIMARY KEY," +
-        "${FirebaseBackupContract.FriendsEntry.COLUMN_NAME_CREATED_AT} INTEGER,"+
-        "${FirebaseBackupContract.FriendsEntry.COLUMN_NAME_FRIEND_ID} TEXT," +
-        "${FirebaseBackupContract.FriendsEntry.COLUMN_NAME_NAME} TEXT," +
-        "${FirebaseBackupContract.FriendsEntry.COLUMN_NAME_EMAIL} TEXT," +
-        "${FirebaseBackupContract.FriendsEntry.COLUMN_NAME_AVATAR} TEXT," +
-        "${FirebaseBackupContract.FriendsEntry.COLUMN_NAME_USER_ID} TEXT)"
+        "${BaseColumns._ID} INTEGER PRIMARY KEY, " +
+        "${FirebaseBackupContract.FriendsEntry.COLUMN_NAME_CREATED_AT} INTEGER, " +
+        "${FirebaseBackupContract.FriendsEntry.COLUMN_NAME_FRIEND_ID} TEXT, " +
+        "${FirebaseBackupContract.FriendsEntry.COLUMN_NAME_NAME} TEXT, " +
+        "${FirebaseBackupContract.FriendsEntry.COLUMN_NAME_EMAIL} TEXT, " +
+        "${FirebaseBackupContract.FriendsEntry.COLUMN_NAME_AVATAR} TEXT, " +
+        "${FirebaseBackupContract.FriendsEntry.COLUMN_NAME_USER_ID} TEXT );"
 
 
 private const val SQL_CREATE_NOTES_ENTRIES = "CREATE TABLE ${FirebaseBackupContract.NotesEntry.TABLE_NAME} (" +
         "${BaseColumns._ID} INTEGER PRIMARY KEY, " +
-        "${FirebaseBackupContract.NotesEntry.COLUMN_NAME_CREATED_AT} INTEGER," +
-        "${FirebaseBackupContract.NotesEntry.COLUMN_NAME_DESCRIPTION} TEXT," +
-        "${FirebaseBackupContract.NotesEntry.COLUMN_NAME_LAT} INTEGER, " +
-        "${FirebaseBackupContract.NotesEntry.COLUMN_NAME_LNG} INTEGER," +
-        "${FirebaseBackupContract.NotesEntry.COLUMN_NAME_PERSON} TEXT," +
-        "${FirebaseBackupContract.NotesEntry.COLUMN_NAME_TITLE} TEXT," +
-        "${FirebaseBackupContract.NotesEntry.COLUMN_NAME_USER_ID} TEXT," +
-        "${FirebaseBackupContract.NotesEntry.COLUMN_NAME_NOTE_ID} TEXT)"
+        "${FirebaseBackupContract.NotesEntry.COLUMN_NAME_CREATED_AT} INTEGER, " +
+        "${FirebaseBackupContract.NotesEntry.COLUMN_NAME_DESCRIPTION} TEXT, " +
+        "${FirebaseBackupContract.NotesEntry.COLUMN_NAME_LAT} TEXT, " +
+        "${FirebaseBackupContract.NotesEntry.COLUMN_NAME_LNG} TEXT, " +
+        "${FirebaseBackupContract.NotesEntry.COLUMN_NAME_PERSON} TEXT, " +
+        "${FirebaseBackupContract.NotesEntry.COLUMN_NAME_TITLE} TEXT, " +
+        "${FirebaseBackupContract.NotesEntry.COLUMN_NAME_USER_ID} TEXT, " +
+        "${FirebaseBackupContract.NotesEntry.COLUMN_NAME_NOTE_ID} TEXT ); "
 
 private const val SQL_CREATE_IMAGES_ENTRIES = "CREATE TABLE ${FirebaseBackupContract.ImageEntry.TABLE_NAME} (" +
         "${BaseColumns._ID} INTEGER PRIMARY KEY, " +
-        "${FirebaseBackupContract.ImageEntry.COLUMN_NAME_CREATED_AT} INTEGER," +
-        "${FirebaseBackupContract.ImageEntry.COLUMN_NAME_NAME} TEXT," +
-        "${FirebaseBackupContract.ImageEntry.COLUMN_NAME_NOTE_ID} TEXT," +
-        "${FirebaseBackupContract.ImageEntry.COLUMN_NAME_IMAGE_ID} TEXT)"
+        "${FirebaseBackupContract.ImageEntry.COLUMN_NAME_CREATED_AT} INTEGER, " +
+        "${FirebaseBackupContract.ImageEntry.COLUMN_NAME_NAME} TEXT, " +
+        "${FirebaseBackupContract.ImageEntry.COLUMN_NAME_NOTE_ID} TEXT, " +
+        "${FirebaseBackupContract.ImageEntry.COLUMN_NAME_IMAGE_ID} TEXT );"
 
 private const val SQL_DELETE_USER_ENTRIES = "DROP TABLE IF EXISTS ${FirebaseBackupContract.UserEntry.TABLE_NAME}"
 private const val SQL_DELETE_FRIENDS_ENTRIES = "DROP TABLE IF EXISTS ${FirebaseBackupContract.FriendsEntry.TABLE_NAME}"
@@ -94,11 +95,22 @@ private const val SQL_DELETE_IMAGES_ENTRIES = "DROP TABLE IF EXISTS ${FirebaseBa
 
 class UserSqliteOpenHelper(context: Context): SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
     override fun onCreate(db: SQLiteDatabase) {
+        Log.w("create", SQL_CREATE_FRIENDS_ENTRIES)
+        Log.w("create", SQL_CREATE_USER_ENTRIES)
+        Log.w("create", SQL_CREATE_NOTES_ENTRIES)
+        Log.w("create", SQL_CREATE_IMAGES_ENTRIES)
         db.execSQL(SQL_CREATE_USER_ENTRIES)
         db.execSQL(SQL_CREATE_FRIENDS_ENTRIES)
         db.execSQL(SQL_CREATE_NOTES_ENTRIES)
         db.execSQL(SQL_CREATE_IMAGES_ENTRIES)
 
+    }
+
+    fun deleteTables() {
+        this.writableDatabase.execSQL("DELETE FROM ${FirebaseBackupContract.UserEntry.TABLE_NAME} WHERE ${BaseColumns._ID} > 0")
+        this.writableDatabase.execSQL("DELETE FROM ${FirebaseBackupContract.ImageEntry.TABLE_NAME} WHERE ${BaseColumns._ID} > 0")
+        this.writableDatabase.execSQL("DELETE FROM ${FirebaseBackupContract.NotesEntry.TABLE_NAME} WHERE ${BaseColumns._ID} > 0")
+        this.writableDatabase.execSQL("DELETE FROM ${FirebaseBackupContract.FriendsEntry.TABLE_NAME} WHERE ${BaseColumns._ID} > 0")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -115,7 +127,7 @@ class UserSqliteOpenHelper(context: Context): SQLiteOpenHelper(context, DATABASE
 
 
     companion object {
-        const val DATABASE_VERSION = 1
-        const val DATABASE_NAME = "FIREBASE_DB"
+        const val DATABASE_VERSION = 2
+        const val DATABASE_NAME = "firebase.db"
     }
 }

@@ -236,7 +236,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
             db = FirebaseFirestore.getInstance()
             localDB = FirebaseDBForSqlite(this)
             storage = FirebaseStorage.getInstance()
-            mHandler.post(runnable)
+            //mHandler.post(runnable)
             // search sqlite for user data
             if (getBoolean(this, LOW_BANDWIDTH)) {
                localUser = localDB.getUser(auth.currentUser!!.uid)
@@ -760,7 +760,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
             }
         }
     }
-
+    //result for location permissions
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         mLocationPermissionGranted = false
         if (requestCode == PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION) {
@@ -773,6 +773,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
 
     private var mLastKnownLocation: Location? = null
 
+    //Put button for location in google map.
     fun updateLocationUI() {
         if (mMap == null) {
             return
@@ -792,7 +793,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
             Log.e(TAG, "Exception:", e)
         }
     }
+    /*
+    Runs location of device and moves map to location
+    Pre-conditions: given permission to access location
+    Has enabled location in settings activity.
+    Only if location has been successfully obtained.
 
+     */
     fun getDeviceLocation() {
         try {
             if (mLocationPermissionGranted && locationSetting) {
@@ -818,6 +825,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         }
     }
 
+    /*alert for asking if user wants to create a note
+    /Pre-conditions: clicked on map location. has requested to add note.
+    */
     private fun createAlertForCreatingNote(p0: LatLng?) {
         val items = arrayOf<CharSequence>(getString(R.string.create_note), getString(R.string.cancel))
         val builder = AlertDialog.Builder(this@MapsActivity)
@@ -842,6 +852,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         startActivity(intent)
     }
 
+    // handler for running updatefromfirebasetaks.
     val mHandler = Handler()
     val runnable: Runnable = Runnable {
         // DO SOMETHING
@@ -851,6 +862,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
 
     }
 
+    //returning status from UpdateFromFirebase to main activity which notifies user to completed activities.
     val handlerUpdateFirebase = Handler(Handler.Callback {message->
         if (message.what == RESULT_COMPLETED) {
             when (message.arg1) {
@@ -876,7 +888,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     })
 
 
-
+    // cyclicle running of updatefromfirebase task. Runs ever 5 minutes
     fun doJob() {
         mHandler.postDelayed(runnable, INTERVAL)
     }
@@ -897,6 +909,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         const val RESULT_COMPLETED = 0
         const val RESULT_EMPTY_USER = 2
         const val RESULT_EMPTY_FRIEND = 3
+        const val RESULT_FINISHED=4
 
 
         const val STATUS_USER = 0
