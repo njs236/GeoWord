@@ -7,17 +7,31 @@ import android.os.Message
 import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.GeoPoint
 import com.nathan.geoword.db.*
 import java.util.*
+import java.util.concurrent.CountDownLatch
 import kotlin.collections.HashMap
 
 
 //attempt at making a class that will handle multiple returns at different times to work with getting local DB updated on MapsActivity
-class UpdateFromFirebase(context: Activity, handler: Handler){
+class UpdateFromFirebase(context: Activity, handler: Handler, test: Boolean){
     val caller: Activity
     val handler: Handler
     val localDB: FirebaseDBForSqlite
+    var shouldTest :Boolean = false
+    var resultStatus: Int = 5
+    var notesCount: Int = 0
+    var hasNotes: Boolean = false
+    var imagesCount: Int = 0
+    var hasImages: Boolean = false
+    var friendsCount: Int = 0
+    var hasFriends :Boolean = false
+    var userName: String =""
+    var hasUser: Boolean = false
+    lateinit var latch: CountDownLatch
     val db: FirebaseFirestore
+
     val auth: FirebaseAuth
 
     companion object {
@@ -26,6 +40,7 @@ class UpdateFromFirebase(context: Activity, handler: Handler){
         const val RESULT_COMPLETED = 0
         const val RESULT_EMPTY_USER = 2
         const val RESULT_EMPTY_FRIEND = 3
+        const val RESULT_FINISHED = 4
 
         const val STATUS_USER = 0
         const val STATUS_NOTE = 1
@@ -43,11 +58,28 @@ class UpdateFromFirebase(context: Activity, handler: Handler){
         this.localDB = FirebaseDBForSqlite(this.caller)
         this.auth = FirebaseAuth.getInstance()
         this.db = FirebaseFirestore.getInstance()
+        this.shouldTest = if (test) true else false
+
 
     }
+    fun setUpTest(latch: CountDownLatch) {
+        this.latch = latch
+    }
     //TODO: progress dialog for update from firebase
-    fun onProgressUpdate(vararg values: Void?) {
+    fun onProgressUpdate(vararg values: Int?) {
 
+        val msg = Message()
+
+        if (userfinished && notefinished && friendfinished) {
+            msg.arg2 = RESULT_FINISHED
+            resultStatus = RESULT_FINISHED
+
+            latch.countDown()
+        } else {
+            msg.what = values[0]!!
+            msg.arg1 = values[1]!!
+        }
+        handler.dispatchMessage(msg)
         //do something with: (*values)
     }
 
@@ -76,15 +108,38 @@ class UpdateFromFirebase(context: Activity, handler: Handler){
         if (map != null) {
             db.collection("notes")
                 .whereEqualTo("user", auth.currentUser!!.uid).get().addOnSuccessListener {querySnapshot ->
+                    notesCount += querySnapshot.count()
+                    if (querySnapshot.count() > 0) {
+                        hasNotes = true
+                    }
                     for (document in querySnapshot) {
-                        val created_at = document.getTimestamp("created_at")
-                        val description = document.getString("description")
-                        val title = document.getString("title")
-                        val person = document.getString("person")
-                        val point = document.getGeoPoint("latlng")
+                        var created_at = Date()
+                        var  description = ""
+                        var title = ""
+                        var person = ""
+                        var point = GeoPoint(0.toDouble(),0.toDouble())
+                        var user_id = ""
+                        if (document.getTimestamp("created_at") != null) {
+                            created_at = document.getTimestamp("created_at")!!.toDate()
+                        }
+                        if (document.getString("description")!= null) {
+                            description = document.getString("description")!!
+                        }
+                        if (document.getString("title") != null) {
+                            title = document.getString("title")!!
+                        }
+                        if (document.getString("person") != null) {
+                            person = document.getString("person")!!
+                        }
+                        if (document.getGeoPoint("latlng") != null) {
+                            point = document.getGeoPoint("latlng")!!
+                        }
+                        if (document.getString("user") != null) {
+                            user_id = document.getString("user")!!
+                        }
+
                         val note_id = document.id
-                        val user_id = document.getString("user")
-                        val entry = Note(created_at!!.toDate(), description!!, point!!.latitude, point!!.longitude, person!!, title!!, user_id!!, note_id)
+                        val entry = Note(created_at, description, point.latitude, point.longitude, person, title, user_id, note_id)
 
                         if (localDB.getNote(note_id) == null) {
                             localDB.addNote(entry)
@@ -98,10 +153,13 @@ class UpdateFromFirebase(context: Activity, handler: Handler){
                                 for (document in querySnapshot) {
                                     val stored_note_id = document.getString("note_id")!!
                                     val name = document.getString("name")!!
-                                    val created_at = document.getTimestamp("created_at")!!
+                                    var created_at = Date()
+                                    if (document.getTimestamp("created_at")!= null) {
+                                        created_at = document.getTimestamp("created_at")!!.toDate()
+                                    }
                                     val image_id = document.id
 
-                                    val entry: Image = Image(created_at.toDate(), stored_note_id, name, image_id)
+                                    val entry: Image = Image(created_at, stored_note_id, name, image_id)
 
                                     if (localDB.getImage(image_id) == null) {
                                         localDB.addImage(entry)
@@ -110,41 +168,54 @@ class UpdateFromFirebase(context: Activity, handler: Handler){
                                     }
                                 }
                                 //TODO: return, finished getting images of note.
-                                val msg = Message()
-                                msg.what = STATUS_IMAGE
-                                msg.arg1 = RESULT_COMPLETED
-                                handler.dispatchMessage(msg)
-
+                                onProgressUpdate(STATUS_IMAGE, RESULT_COMPLETED)
 
                             }.addOnFailureListener { e->
                                 Log.w(TAG, "Error in retrieving image data", e)
-                            val msg = Message()
-                            msg.what = STATUS_IMAGE
-                            msg.arg1 = RESULT_ERROR
-                            handler.dispatchMessage(msg)}
+                            onProgressUpdate(STATUS_IMAGE, RESULT_ERROR) }
                     }
 
                     //TODO: return, finished getting users Note data.
-                    val msg = Message()
-                    msg.what = STATUS_NOTE
-                    msg.arg1 = RESULT_COMPLETED
-                    handler.dispatchMessage(msg)
+                    //onProgressUpdate(STATUS_NOTE, RESULT_COMPLETED)
                 }
             var count = 0
             for ((friend, value) in map!!) {
                 db.collection("notes")
                     .whereEqualTo("user",friend).get().addOnSuccessListener { querySnapshot ->
                         count++
+                        notesCount += querySnapshot.count()
+                        if (querySnapshot.count() > 0) {
+                            hasNotes = true
+                        }
                         for(document in querySnapshot){
 
-                            val created_at = document.getTimestamp("created_at")
-                            val description = document.getString("description")
-                            val title = document.getString("title")
-                            val person = document.getString("person")
-                            val point = document.getGeoPoint("latlng")
+                            var created_at = Date()
+                            var  description = ""
+                            var title = ""
+                            var person = ""
+                            var point = GeoPoint(0.toDouble(),0.toDouble())
+                            var user_id = ""
+                            if (document.getTimestamp("created_at") != null) {
+                                created_at = document.getTimestamp("created_at")!!.toDate()
+                            }
+                            if (document.getString("description")!= null) {
+                                description = document.getString("description")!!
+                            }
+                            if (document.getString("title") != null) {
+                                title = document.getString("title")!!
+                            }
+                            if (document.getString("person") != null) {
+                                person = document.getString("person")!!
+                            }
+                            if (document.getGeoPoint("latlng") != null) {
+                                point = document.getGeoPoint("latlng")!!
+                            }
+                            if (document.getString("user") != null) {
+                                user_id = document.getString("user")!!
+                            }
+
                             val note_id = document.id
-                            val user_id = document.getString("user")
-                            val entry = Note(created_at!!.toDate(), description!!, point!!.latitude, point!!.longitude, person!!, title!!, user_id!!, note_id)
+                            val entry = Note(created_at, description, point.latitude, point.longitude, person, title, user_id, note_id)
                             if (localDB.getNote(note_id) == null) {
                                 localDB.addNote(entry)
                             } else {
@@ -157,10 +228,13 @@ class UpdateFromFirebase(context: Activity, handler: Handler){
 
                                         val stored_note_id = document.getString("note_id")!!
                                         val name = document.getString("name")!!
-                                        val created_at = document.getTimestamp("created_at")!!
+                                        var created_at = Date()
+                                        if (document.getTimestamp("created_at") != null) {
+                                            created_at = document.getTimestamp("created_at")!!.toDate()
+                                        }
                                         val image_id = document.id
 
-                                        val entry = Image(created_at.toDate(), stored_note_id, name, image_id)
+                                        val entry = Image(created_at, stored_note_id, name, image_id)
 
                                         if (localDB.getImage(image_id) == null) {
                                             localDB.addImage(entry)
@@ -169,31 +243,20 @@ class UpdateFromFirebase(context: Activity, handler: Handler){
                                         }
                                     }
                                     //TODO: return, finished getting image of note
-                                    val msg = Message()
-                                    msg.what = STATUS_IMAGE
-                                    msg.arg1 = RESULT_COMPLETED
-
-                                    handler.dispatchMessage(msg)
+                                    onProgressUpdate(STATUS_IMAGE, RESULT_COMPLETED)
                                 }
                         }
 
                         //TODO: return, finished getting friends note data.
                         if (count < map!!.count() -1) {
-                            val msg= Message()
-                            msg.what = STATUS_NOTE
-                            msg.arg1 = IN_PROGRESS
+
                         } else {
-                            val msg = Message()
-                            msg.what = STATUS_NOTE
-                            msg.arg1 = RESULT_COMPLETED
-                            handler.dispatchMessage(msg)
+                            notefinished = true
+                            onProgressUpdate(STATUS_NOTE, RESULT_COMPLETED)
                         }
                     }.addOnFailureListener {e->
-                        val msg = Message()
-                        msg.what = STATUS_FRIEND
-                        msg.arg1 = RESULT_ERROR
+                        onProgressUpdate(STATUS_NOTE, RESULT_ERROR)
                         count++
-                    handler.dispatchMessage(msg)
                         Log.w(TAG, "error in retrieving friends notes data", e)
                     }
             }
@@ -203,6 +266,10 @@ class UpdateFromFirebase(context: Activity, handler: Handler){
     fun updateFriendData() {
         if (map != null) {
             var count = 0
+            friendsCount += map!!.count()
+            if (map!!.count() > 0) {
+                hasFriends = true
+            }
             for ((friend, value) in map!!) {
                 db.collection("public")
                     .document(friend).get().addOnSuccessListener {documentSnapshot ->
@@ -226,7 +293,9 @@ class UpdateFromFirebase(context: Activity, handler: Handler){
                             if (documentSnapshot.getString("avatar")!= null) {
                                 avatar = documentSnapshot.getString("avatar")!!
                             }
-                            created_at = documentSnapshot.getTimestamp("created_at")!!.toDate()
+                            if (documentSnapshot.getTimestamp("created_at")!= null) {
+                                created_at = documentSnapshot.getTimestamp("created_at")!!.toDate()
+                            }
 
 
 
@@ -246,16 +315,9 @@ class UpdateFromFirebase(context: Activity, handler: Handler){
 
                         //TODO: return, finished getting friend data.
                         if (count < map!!.count() -1) {
-                            val msg = Message()
-                            msg.what = STATUS_FRIEND
-                            msg.arg1 = IN_PROGRESS
-                            handler.dispatchMessage(msg)
                         } else {
-                            val msg = Message()
-                            msg.what = STATUS_FRIEND
-                            msg.arg1 = RESULT_COMPLETED
                             friendfinished = true
-                            handler.dispatchMessage(msg)
+                            onProgressUpdate(STATUS_FRIEND, RESULT_COMPLETED)
                         }
                     }
             }
@@ -272,10 +334,13 @@ class UpdateFromFirebase(context: Activity, handler: Handler){
                 var user_id = ""
                 var created_at = Date()
                 if (documentSnapshot!= null) {
+                    hasUser = true
                     user_id = documentSnapshot.id
 
                     if (documentSnapshot.getString("name") != null) {
+
                         name = documentSnapshot.getString("name")!!
+
                     }
                     if (documentSnapshot.getString("email")!= null) {
                         email = documentSnapshot.getString("email")!!
@@ -283,7 +348,10 @@ class UpdateFromFirebase(context: Activity, handler: Handler){
                     if (documentSnapshot.getString("avatar")!= null) {
                         avatar = documentSnapshot.getString("avatar")!!
                     }
-                    created_at = documentSnapshot.getTimestamp("created_at")!!.toDate()
+                    if (documentSnapshot.getTimestamp("created_at")!= null) {
+                        created_at = documentSnapshot.getTimestamp("created_at")!!.toDate()
+                    }
+
                     if (documentSnapshot.get("friends") != null) {
                         map = documentSnapshot.get("friends") as HashMap<String, Boolean>
                         // map size, how many friends have to be cycled through.
@@ -294,11 +362,9 @@ class UpdateFromFirebase(context: Activity, handler: Handler){
 
                 } else {
                     // didn't fetch any data of user
-                    val msg = Message()
-                    msg.what = STATUS_USER
-                    msg.arg1 = RESULT_COMPLETED
-                    handler.dispatchMessage(msg)
+                    onProgressUpdate(STATUS_USER, RESULT_COMPLETED)
                 }
+                userName = name
                 entry.created_at = created_at
                 entry.user_id = user_id
                 entry.name = name
@@ -308,19 +374,19 @@ class UpdateFromFirebase(context: Activity, handler: Handler){
                 db.collection("users")
                     .document(auth.currentUser!!.uid).get().addOnSuccessListener {documentSnapshot->
                         var location = false
-                        var newZoom = -1f
+                        var newZoom : Long = -1
                         if (documentSnapshot!= null) {
                             if (documentSnapshot.getBoolean("location") != null) {
                                 location = documentSnapshot.getBoolean("location")!!
                             }
                             if (documentSnapshot.data?.get("defaultZoom")!= null) {
-                                newZoom = documentSnapshot.data?.get("defaultZoom") as Float
+                                newZoom = documentSnapshot.data?.get("defaultZoom") as Long
                             }
 
                         }
 
                         entry.location = location
-                        entry.defaultZoom = newZoom
+                        entry.defaultZoom = newZoom.toFloat()
                         if (localDB.getUser(auth.currentUser!!.uid) == null) {
                             localDB.addUser(entry)
                         } else {
@@ -328,11 +394,8 @@ class UpdateFromFirebase(context: Activity, handler: Handler){
                         }
 
                         //TODO: return, finished getting user data.
-                        val msg = Message()
-                        msg.what = STATUS_USER
-                        msg.arg1 = RESULT_COMPLETED
                         userfinished = true
-                        handler.dispatchMessage(msg)
+                        onProgressUpdate(STATUS_USER, RESULT_COMPLETED)
 
 
                     }

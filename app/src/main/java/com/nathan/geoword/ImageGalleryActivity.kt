@@ -2,11 +2,11 @@ package com.nathan.geoword
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.support.v7.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
-import android.support.v7.widget.LinearLayoutManager
-import android.support.v7.widget.RecyclerView
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -35,7 +35,7 @@ class ImageGalleryActivity : AppCompatActivity(), ThumbnailCallback {
     }
 
     val activity = this@ImageGalleryActivity
-    private lateinit var thumbListView: RecyclerView
+    private lateinit var thumbListView: androidx.recyclerview.widget.RecyclerView
     private lateinit var placeHolderImageView: ImageView
 
     private lateinit  var auth: FirebaseAuth
@@ -59,8 +59,8 @@ class ImageGalleryActivity : AppCompatActivity(), ThumbnailCallback {
         setContentView(R.layout.activity_image_gallery)
         thumbListView = findViewById(R.id.thumbnails)
         placeHolderImageView = findViewById(R.id.place_holder_imageview)
-        val layoutManager = LinearLayoutManager(activity)
-        layoutManager.orientation = LinearLayoutManager.HORIZONTAL
+        val layoutManager = androidx.recyclerview.widget.LinearLayoutManager(activity)
+        layoutManager.orientation = androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL
         layoutManager.scrollToPosition(0)
         thumbListView.layoutManager = layoutManager
         thumbListView.setHasFixedSize(true)
@@ -148,7 +148,7 @@ class ImageGalleryActivity : AppCompatActivity(), ThumbnailCallback {
     }
 
     inner class ThumbnailsAdapter (newDataSet: List<ThumbnailItem>, newThumbnailCallback: ThumbnailCallback):
-        RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+        androidx.recyclerview.widget.RecyclerView.Adapter<androidx.recyclerview.widget.RecyclerView.ViewHolder>() {
 
 
         private val TAG: String = this.javaClass.simpleName
@@ -162,7 +162,7 @@ class ImageGalleryActivity : AppCompatActivity(), ThumbnailCallback {
 
         }
 
-        override fun onCreateViewHolder(viewGroup: ViewGroup, i: Int): RecyclerView.ViewHolder {
+        override fun onCreateViewHolder(viewGroup: ViewGroup, i: Int): androidx.recyclerview.widget.RecyclerView.ViewHolder {
             Log.v(TAG, "On Create View Holder Called")
             val itemView = LayoutInflater.from(viewGroup.context).inflate(R.layout.list_thumbnail_item, viewGroup, false)
             return ThumbnailsViewHolder(itemView)
@@ -172,7 +172,7 @@ class ImageGalleryActivity : AppCompatActivity(), ThumbnailCallback {
             return dataSet.count()
         }
 
-        override fun onBindViewHolder(holder: RecyclerView.ViewHolder, i: Int) {
+        override fun onBindViewHolder(holder: androidx.recyclerview.widget.RecyclerView.ViewHolder, i: Int) {
             val thumbnailItem = dataSet.get(i)
             Log.v(TAG, "On Bind View Called")
             val thumbnailsViewHolder : ThumbnailsViewHolder = holder as ThumbnailsViewHolder
@@ -192,7 +192,7 @@ class ImageGalleryActivity : AppCompatActivity(), ThumbnailCallback {
             lastPosition = position
         }
 
-        inner class ThumbnailsViewHolder: RecyclerView.ViewHolder {
+        inner class ThumbnailsViewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder {
             var thumbnail: ImageView
 
             constructor(v: View): super(v) {

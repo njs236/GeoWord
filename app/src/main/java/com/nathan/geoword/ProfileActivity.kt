@@ -3,10 +3,10 @@ package com.nathan.geoword
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.support.design.widget.BottomNavigationView
-import android.support.design.widget.NavigationView
-import android.support.v4.app.Fragment
-import android.support.v7.app.AppCompatActivity
+import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.navigation.NavigationView
+import androidx.fragment.app.Fragment
+import androidx.appcompat.app.AppCompatActivity
 import android.util.Log
 import android.view.MenuItem
 import android.widget.ImageView
@@ -157,7 +157,7 @@ SettingsFragment.OnFragmentInteractionListener{
 
 
     fun changeView(item: MenuItem?) {
-        var frag: Fragment? = null
+        var frag: androidx.fragment.app.Fragment? = null
         when (item!!.itemId) {
             R.id.navigation_home -> {
                 Log.w(TAG, "choosing: ProfileHome")

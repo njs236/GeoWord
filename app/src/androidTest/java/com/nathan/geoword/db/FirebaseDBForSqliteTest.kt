@@ -1,10 +1,10 @@
 package com.nathan.geoword.db
 
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
-import android.support.test.InstrumentationRegistry
-import android.support.test.runner.AndroidJUnit4
 import com.google.firebase.firestore.GeoPoint
 
 import org.junit.Assert.*
