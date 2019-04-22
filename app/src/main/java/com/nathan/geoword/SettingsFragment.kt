@@ -21,6 +21,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
+import androidx.appcompat.widget.SwitchCompat
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.*
 import com.google.firebase.firestore.FirebaseFirestore
@@ -59,8 +60,8 @@ class SettingsFragment : androidx.fragment.app.Fragment() {
     private lateinit var etConfirmPassword: EditText
     private lateinit var etSetName: EditText
     private lateinit var btnSubmitSettings: Button
-    private lateinit var checkBoxLocation: CheckBox
-    private lateinit var checkBoxLowBandwidth: CheckBox
+    private lateinit var switchLocation: SwitchCompat
+    private lateinit var switchLowBandwidth: SwitchCompat
     private lateinit var db: FirebaseFirestore
     private lateinit var auth: FirebaseAuth
     private lateinit var activity: Activity
@@ -90,8 +91,8 @@ class SettingsFragment : androidx.fragment.app.Fragment() {
         etSetName = view.findViewById(R.id.etSetName)
         btnSubmitSettings = view.findViewById(R.id.btnSubmitSettings)
         btnSubmitSettings.setOnClickListener(submitSettings())
-        checkBoxLocation = view.findViewById(R.id.checkBoxLocation)
-        checkBoxLowBandwidth = view.findViewById(R.id.checkBoxLowBandwidth)
+        switchLocation = view.findViewById(R.id.switchLocation)
+        switchLowBandwidth = view.findViewById(R.id.switchLowBandwidth)
 
         auth = FirebaseAuth.getInstance()
         if (auth.currentUser != null) {
@@ -114,12 +115,13 @@ class SettingsFragment : androidx.fragment.app.Fragment() {
             db.collection("users").document(auth.currentUser!!.uid).get().addOnSuccessListener { documentSnapshot ->
                 if (documentSnapshot != null) {
                     if (documentSnapshot.getBoolean("location")!= null) {
-                        checkBoxLocation.isChecked = documentSnapshot.getBoolean("location")!!
+                        switchLocation.isChecked = documentSnapshot.getBoolean("location")!!
                     }
                 }
             }
 
-            checkBoxLowBandwidth.isChecked = getBoolean(context!!, LOW_BANDWIDTH)
+            Log.w(TAG, getBoolean(context!!, LOW_BANDWIDTH).toString())
+            switchLowBandwidth.isChecked = getBoolean(context!!, LOW_BANDWIDTH)
 
 
         }
@@ -146,8 +148,10 @@ class SettingsFragment : androidx.fragment.app.Fragment() {
         val confirmPassword = etConfirmPassword.text.toString()
         val email = auth.currentUser!!.email!!
         val user = auth.currentUser!!
-        val location = checkBoxLocation.isChecked
-        val low_bandwidth = checkBoxLowBandwidth.isChecked
+        val location = switchLocation.isChecked
+
+        val low_bandwidth = switchLowBandwidth.isChecked
+        Log.w(TAG, low_bandwidth.toString())
 
 
         if (newPassword != "") {
@@ -498,8 +502,7 @@ class SettingsFragment : androidx.fragment.app.Fragment() {
 
         fun setBoolean(context: Context, boolean: Boolean) {
             val sharedPreferences = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE)
-            sharedPreferences.edit().putBoolean(LOW_BANDWIDTH, boolean)
-            sharedPreferences.edit().apply()
+            sharedPreferences.edit().putBoolean(LOW_BANDWIDTH, boolean).apply()
         }
 
         fun getBoolean(context: Context, key: String) : Boolean{

@@ -3,6 +3,7 @@ package com.nathan.geoword.db
 import android.content.ContentValues
 import android.content.Context
 import android.provider.BaseColumns
+import android.util.Log
 import com.google.firebase.firestore.GeoPoint
 import java.util.*
 
@@ -11,6 +12,7 @@ class FirebaseDBForSqlite(context: Context) {
     // 5 minute timer for updating sqlite db with firebase data
     //
 
+    private val TAG = this.javaClass.simpleName
     var context: Context
     val db: UserSqliteOpenHelper
     init {
@@ -307,6 +309,7 @@ class FirebaseDBForSqlite(context: Context) {
             while (moveToNext()) {
                 val newDate: Date = Date(getInt(getColumnIndexOrThrow(FirebaseBackupContract.UserEntry.COLUMN_NAME_CREATED_AT)).toLong())
                 val newZoom: Float = getInt(getColumnIndexOrThrow(FirebaseBackupContract.UserEntry.COLUMN_NAME_DEFAULTZOOM)).toFloat()
+                //Log.d(TAG, "newZoom: ${newZoom}")
                 val newLocation: Boolean = getInt(getColumnIndexOrThrow(FirebaseBackupContract.UserEntry.COLUMN_NAME_LOCATION)).Boolean
                 val newUserId: String = getString(getColumnIndexOrThrow(FirebaseBackupContract.UserEntry.COLUMN_NAME_USER_ID))
                 val newEmail: String = getString(getColumnIndexOrThrow(FirebaseBackupContract.UserEntry.COLUMN_NAME_EMAIL))

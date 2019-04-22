@@ -75,15 +75,18 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     }
 
     private fun onInfoWindowClick(): GoogleMap.OnInfoWindowClickListener = GoogleMap.OnInfoWindowClickListener { p0 ->
-
-        loadNote(p0)
+        if (getBoolean(this, LOW_BANDWIDTH)) {
+            loadNoteLocal(p0)
+        } else {
+            loadNote(p0)
+        }
     }
 
     /*old marker code
     **/
-    private fun loadNote(p0: Marker?) {
 
 
+    private fun loadNoteLocal(p0: Marker?) {
         var point = GeoPoint(p0!!.position.latitude, p0!!.position.longitude)
         // search sqlitedb for friends
         if (getBoolean(this, LOW_BANDWIDTH)) {
@@ -109,8 +112,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
             }
 
         }
+    }
+    private fun loadNote(p0: Marker?) {
 
 
+        var point = GeoPoint(p0!!.position.latitude, p0!!.position.longitude)
         // search Firebase DB for friends list in public db.
         if (!getBoolean(this, LOW_BANDWIDTH)) {
             db.collection("public").document(auth.currentUser!!.uid).get().addOnSuccessListener { documentSnapshot ->
@@ -201,6 +207,26 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
 
     private lateinit var mFusedLocationProviderClient: FusedLocationProviderClient
 
+    private fun loadUserDataLocal() {
+        if (getBoolean(this, LOW_BANDWIDTH)) {
+            localUser = localDB.getUser(auth.currentUser!!.uid)
+            if (localUser != null) {
+                // store name of user in menu bar
+                titleText.text = localUser!!.name
+
+                // store email of user in menu bar
+                subTitleText.text = localUser!!.email
+                //if avatar is not empty
+                if (localUser!!.avatar != "") {
+                    // store avatar of user in menu bar
+                    displayAvatar(localUser!!.avatar)
+                }
+
+            }
+
+
+        }
+    }
     // ...
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -236,26 +262,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
             db = FirebaseFirestore.getInstance()
             localDB = FirebaseDBForSqlite(this)
             storage = FirebaseStorage.getInstance()
-            //mHandler.post(runnable)
-            // search sqlite for user data
+            // update database at start up if running from local DB
             if (getBoolean(this, LOW_BANDWIDTH)) {
-               localUser = localDB.getUser(auth.currentUser!!.uid)
-                if (localUser != null) {
-                    // store name of user in menu bar
-                    titleText.text = localUser!!.name
-
-                    // store email of user in menu bar
-                    subTitleText.text = localUser!!.email
-                    //if avatar is not empty
-                    if (localUser!!.avatar != "") {
-                        // store avatar of user in menu bar
-                        displayAvatar(localUser!!.avatar)
-                    }
-
-                }
-
-
+                mHandler.post(runnable)
             }
+
+
             // search firebase db for users public folder
             if (!getBoolean(this, LOW_BANDWIDTH)) {
                 db.collection("public").document(auth.currentUser!!.uid).get().addOnSuccessListener { document ->
@@ -338,8 +350,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
                 if (marker.latlng == p0!!.position) {
                     Log.w(TAG, "loading contents of window")
                     val titleText = marker.title
-                    Log.w(TAG, "title: ${titleText}")
-                    Log.w(TAG, "avatar: ${marker.image}")
+                    //Log.w(TAG, "title: ${titleText}")
+                    //Log.w(TAG, "avatar: ${marker.image}")
                     title.setText(marker.author)
                     subtitle.setText(marker.title)
                     if (marker.image != "") {
@@ -388,42 +400,19 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
      * it inside the SupportMapFragment. This method will only be triggered once the user has
      * installed Google Play services and returned to the app.
      */
-    override fun onMapReady(googleMap: GoogleMap) {
-        mMap = googleMap
-        mMap.setOnMapClickListener(this)
-        mMap.setOnMarkerClickListener(this)
-        mMap.setOnMarkerDragListener(this)
-        mMap.setInfoWindowAdapter(CustomInfoWindow(this))
-        mMap.setOnInfoWindowClickListener(onInfoWindowClick())
-        // for tracking location of user
-        updateLocationUI()
 
-        getDeviceLocation()
-
+    private fun loadMarkersLocal() {
 
         // prepare map for new data
         markers.clear()
         public.clear()
-        if (getBoolean(this, LOW_BANDWIDTH)) {
+         if (getBoolean(this, LOW_BANDWIDTH)) {
             localUser = localDB.getUser(auth.currentUser!!.uid)
             // search sqlite db for zoom
             localZoomProperty()
             // search sqlite db for location
             localLocationProperty()
         }
-
-
-        // search firebase db for zoom property
-        if (!getBoolean(this, LOW_BANDWIDTH)) {
-            db.collection("users")
-                .document(auth.currentUser!!.uid)
-                .addSnapshotListener(zoomProperty())
-            // search firebase db for location property
-            db.collection("users")
-                .document(auth.currentUser!!.uid)
-                .addSnapshotListener(locationProperty())
-        }
-
 
         // get your markers.
         if (getBoolean(this, LOW_BANDWIDTH)) {
@@ -443,6 +432,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
                     name = localUser!!.name
 
                 }
+                //Log.w(TAG, "avatar: ${avatar}")
+                //Log.w(TAG, "name: ${name}")
                 // place information of public into public array
                 val item = ArrayList<String>()
                 item.add(avatar)
@@ -453,7 +444,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
                 val notes = localDB.getNotes(auth.currentUser!!.uid)
                 // if success
                 if (notes.count() > 0) {
-
+                    retrieveMarkersLocalDB(notes)
                 }
                 // search sqlite for notes of friends
                 for (friend in map) {
@@ -471,10 +462,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
                             friendName = friend.name
                         }
                         // put public information in public array
-                        val item = ArrayList<String>()
-                        item.add(avatar)
-                        item.add(name)
-                        public.put(auth.currentUser!!.uid, item)
+                        val friendItem = ArrayList<String>()
+                        friendItem.add(friendAvatar)
+                        friendItem.add(friendName)
+                        public.put(friend.friend_id, friendItem)
                         // put marker on map
                         retrieveMarkersLocalDB(friendsNotes)
 
@@ -487,72 +478,108 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
 
 
         }
+    }
+
+    override fun onMapReady(googleMap: GoogleMap) {
+        mMap = googleMap
+        mMap.setOnMapClickListener(this)
+        mMap.setOnMarkerClickListener(this)
+        mMap.setOnMarkerDragListener(this)
+        mMap.setInfoWindowAdapter(CustomInfoWindow(this))
+        mMap.setOnInfoWindowClickListener(onInfoWindowClick())
+        // for tracking location of user
+        updateLocationUI()
+
+        getDeviceLocation()
+
+
+        // prepare map for new data
+        markers.clear()
+        public.clear()
+
+
+
+        // search firebase db for zoom property
+        if (!getBoolean(this, LOW_BANDWIDTH)) {
+            db.collection("users")
+                .document(auth.currentUser!!.uid)
+                .addSnapshotListener(zoomProperty())
+            // search firebase db for location property
+            db.collection("users")
+                .document(auth.currentUser!!.uid)
+                .addSnapshotListener(locationProperty())
+        }
+
+
+
         // search firebase db for friends list of authenticated user
-        db.collection("public").document(auth.currentUser!!.uid).get().addOnSuccessListener {documentSnapshot->
-            // put friends list into map
-            var map: HashMap<String, Boolean>? = null
+        if (!getBoolean(this, LOW_BANDWIDTH)) {
+            db.collection("public").document(auth.currentUser!!.uid).get().addOnSuccessListener { documentSnapshot ->
+                // put friends list into map
+                var map: HashMap<String, Boolean>? = null
 
-            if (documentSnapshot != null) {
-                map = documentSnapshot.get("friends") as HashMap<String, Boolean>
-                var avatar = ""
-                var name = ""
-                // if avatar property
-                if (documentSnapshot.getString("avatar")!= null) {
-                    avatar = documentSnapshot.getString("avatar")!!
-                }
-                // if name property
-                if (documentSnapshot.getString("name")!= null) {
+                if (documentSnapshot != null) {
+                    map = documentSnapshot.get("friends") as HashMap<String, Boolean>
+                    var avatar = ""
+                    var name = ""
+                    // if avatar property
+                    if (documentSnapshot.getString("avatar") != null) {
+                        avatar = documentSnapshot.getString("avatar")!!
+                    }
+                    // if name property
+                    if (documentSnapshot.getString("name") != null) {
 
-                    name = documentSnapshot.getString("name")!!
-                }
-                // place information of public into public array
+                        name = documentSnapshot.getString("name")!!
+                    }
+                    // place information of public into public array
                     val item = ArrayList<String>()
                     item.add(avatar)
                     item.add(name)
                     public.put(auth.currentUser!!.uid, item)
 
-            }
-            // search firebase db for notes of current user sorted by creation date
-            if (!getBoolean(this, LOW_BANDWIDTH)) {
-                db.collection("notes")
-                    .whereEqualTo("user", auth.currentUser!!.uid)
-                    .orderBy("cr_date", Query.Direction.ASCENDING)
-                    .get()
-                    // if success
-                    .addOnSuccessListener(retrieveMarkersSuccessListener())
-                    .addOnFailureListener(retrieveMarkersFailureListener())
-                for ((friend, key) in map!!) {
-                    // search firebase db for public friends information
-                    db.collection("public").document(friend).get().addOnSuccessListener { documentSnapshot ->
-                        if (documentSnapshot != null) {
-                            var avatar = ""
-                            var name = ""
-                            // if avatar
-                            if (documentSnapshot.getString("avatar") != null) {
-                                avatar = documentSnapshot.getString("avatar")!!
-                            }
-                            // if name
-                            if (documentSnapshot.getString("name") != null) {
-
-                                name = documentSnapshot.getString("name")!!
-                            }
-                            // place public information of friends into public array
-                            val item = ArrayList<String>()
-                            item.add(avatar)
-                            item.add(name)
-                            public.put(friend, item)
-                            // search firebase db for friends of markers
-                            db.collection("notes")
-                                .whereEqualTo("user", friend)
-                                .get()
-                                .addOnSuccessListener(retrieveMarkersSuccessListener())
-                                .addOnFailureListener(retrieveMarkersFailureListener())
-                        }
-                    }
-
                 }
-            }
+                // search firebase db for notes of current user sorted by creation date
+                if (!getBoolean(this, LOW_BANDWIDTH)) {
+                    db.collection("notes")
+                        .whereEqualTo("user", auth.currentUser!!.uid)
+                        .orderBy("cr_date", Query.Direction.ASCENDING)
+                        .get()
+                        // if success
+                        .addOnSuccessListener(retrieveMarkersSuccessListener())
+                        .addOnFailureListener(retrieveMarkersFailureListener())
+                    for ((friend, key) in map!!) {
+                        // search firebase db for public friends information
+                        db.collection("public").document(friend).get().addOnSuccessListener { documentSnapshot ->
+                            if (documentSnapshot != null) {
+                                var avatar = ""
+                                var name = ""
+                                // if avatar
+                                if (documentSnapshot.getString("avatar") != null) {
+                                    avatar = documentSnapshot.getString("avatar")!!
+                                }
+                                // if name
+                                if (documentSnapshot.getString("name") != null) {
 
+                                    name = documentSnapshot.getString("name")!!
+                                }
+                                // place public information of friends into public array
+                                val item = ArrayList<String>()
+                                item.add(avatar)
+                                item.add(name)
+                                public.put(friend, item)
+                                // search firebase db for friends of markers
+                                db.collection("notes")
+                                    .whereEqualTo("user", friend)
+                                    .get()
+                                    .addOnSuccessListener(retrieveMarkersSuccessListener())
+                                    .addOnFailureListener(retrieveMarkersFailureListener())
+                            }
+                        }
+
+                    }
+                }
+
+            }
         }
 
 
@@ -680,7 +707,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
     private var mDefaultLocation: LatLng? = null
 
     fun localZoomProperty() {
+        //Log.d(TAG, "localZoomProperty")
+        localUser = localDB.getUser(auth.currentUser!!.uid)
+
         if (localUser != null) {
+            //Log.d(TAG, "zoom: ${localUser!!.defaultZoom}")
             if (markers.count() > 0) {
                 val lastRecord = markers[markers.count() - 1].latlng
                 mDefaultLocation = lastRecord
@@ -751,7 +782,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
                 ) == PackageManager.PERMISSION_GRANTED
             ) {
                 mLocationPermissionGranted = true
-                Log.w(TAG, "locationPermissionGranted: ${mLocationPermissionGranted}")
+                //Log.w(TAG, "locationPermissionGranted: ${mLocationPermissionGranted}")
             } else {
                 var perms = ArrayList<String>()
                 perms.add(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -864,6 +895,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
 
     //returning status from UpdateFromFirebase to main activity which notifies user to completed activities.
     val handlerUpdateFirebase = Handler(Handler.Callback {message->
+        if (message.arg2 == RESULT_FINISHED) {
+            // must implement if you want to do something after the update from firebase finishes.
+            // refresh map and user information
+            loadUserDataLocal()
+            loadMarkersLocal()
+        }
         if (message.what == RESULT_COMPLETED) {
             when (message.arg1) {
                 STATUS_USER ->{
@@ -876,11 +913,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
                 STATUS_IMAGE ->{}
             }
 
-        } else if (message.what == IN_PROGRESS) {
+        }
+        if (message.what == IN_PROGRESS) {
 
-        } else if (message.what == RESULT_ERROR) {
+        }
+        if ( message.what == RESULT_ERROR) {
 
-        } else if (message.what == RESULT_EMPTY_USER) {
+        }
+        if (message.what == RESULT_EMPTY_USER) {
 
         }
             false

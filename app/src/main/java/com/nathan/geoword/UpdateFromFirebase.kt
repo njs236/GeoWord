@@ -1,6 +1,7 @@
 package com.nathan.geoword
 
 import android.app.Activity
+import android.app.ProgressDialog
 import android.os.AsyncTask
 import android.os.Handler
 import android.os.Message
@@ -69,12 +70,19 @@ class UpdateFromFirebase(context: Activity, handler: Handler, test: Boolean){
     fun onProgressUpdate(vararg values: Int?) {
 
         val msg = Message()
+       /* Log.w(TAG, "userfinished: ${userfinished}")
+        Log.w(TAG, "notefinished: ${notefinished}")
+        Log.w(TAG, "friendfinished: ${friendfinished}")
+        Log.w(TAG, "area: ${values[0]}")
+        Log.w(TAG, "result: ${values[1]}")*/
 
         if (userfinished && notefinished && friendfinished) {
             msg.arg2 = RESULT_FINISHED
             resultStatus = RESULT_FINISHED
 
-            latch.countDown()
+            if (shouldTest) {
+                latch.countDown()
+            }
         } else {
             msg.what = values[0]!!
             msg.arg1 = values[1]!!
@@ -100,6 +108,7 @@ class UpdateFromFirebase(context: Activity, handler: Handler, test: Boolean){
     fun execute(vararg params: Void?) {
         doInBackground(*params)
     }
+
 
 
     private val TAG: String = this.javaClass.simpleName

@@ -106,11 +106,11 @@
                 android:orientation="horizontal"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
-            <CheckBox
+            <androidx.appcompat.widget.SwitchCompat
                     android:text="@string/hint_location"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:id="@+id/checkBoxLocation"
+                    android:id="@+id/switchLocation"
                     android:layout_weight="1"
                     android:fontFamily="sans-serif-light"
                     android:textSize="14dp" android:textColor="@android:color/tertiary_text_light"/>
@@ -119,11 +119,11 @@
                 android:orientation="horizontal"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
-            <CheckBox
+            <androidx.appcompat.widget.SwitchCompat
                     android:text="@string/hint_low_bandwidth"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:id="@+id/checkBoxLowBandwidth"
+                    android:id="@+id/switchLowBandwidth"
                     android:layout_weight="1"
                     android:fontFamily="sans-serif-light"
                     android:textSize="14dp" android:textColor="@android:color/tertiary_text_light"/>

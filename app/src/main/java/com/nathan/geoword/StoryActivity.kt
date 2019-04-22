@@ -11,6 +11,8 @@ import android.content.pm.PackageManager.PERMISSION_GRANTED
 import android.database.Cursor
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffColorFilter
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -23,7 +25,10 @@ import androidx.core.content.FileProvider
 import androidx.appcompat.widget.Toolbar
 import android.util.Log
 import android.view.*
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.*
+import androidx.core.graphics.drawable.DrawableCompat
 import com.bumptech.glide.Glide
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.tasks.OnFailureListener
@@ -85,6 +90,7 @@ class StoryActivity : AppCompatActivity() {
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
     private lateinit var storage: FirebaseStorage
+    private var imageNames: ArrayList<String> = ArrayList()
 
     enum class ActivityState (val number: Int){
         new(1),
@@ -238,14 +244,27 @@ class StoryActivity : AppCompatActivity() {
 
     private fun deleteImageFromStorage(imageName: String?) {
         if (imageName != null) {
-            val ref = storage.reference
-            val delete = ref.child(imageName)
-            delete.delete().addOnSuccessListener {
-                Log.w(TAG, "deleted image: ${imageName}")
-            }
-                .addOnFailureListener { e ->
-                    Log.d(TAG, "error deleting image.", e)
+            db.collection("notes").document(docref).collection("images")
+                .whereEqualTo("name", imageName).get().addOnSuccessListener { querySnapshot->
+                    for (document in querySnapshot) {
+                        val ref = storage.reference
+                        val delete = ref.child(imageName)
+                        delete.delete().addOnSuccessListener {
+                            Log.w(TAG, "deleted image: ${imageName}")
+                            db.collection("notes").document(docref).collection("images")
+                                .document(document.id).delete().addOnSuccessListener { Log.w(TAG, "deleted image in note") }
+                                .addOnFailureListener {e->Log.d(TAG, "error deleting image", e)}
+                        }
+                            .addOnFailureListener { e ->
+                                Log.d(TAG, "error deleting image.", e)
+                                db.collection("notes").document(docref).collection("images")
+                                    .document(document.id).delete().addOnSuccessListener { Log.w(TAG, "deleted image in note") }
+                                    .addOnFailureListener {e->Log.d(TAG, "error deleting image", e)}
+                            }
+
+                    }
                 }
+
         }
     }
 
@@ -315,6 +334,7 @@ class StoryActivity : AppCompatActivity() {
     fun retrieveImageDataForNoteSuccessListener(): OnSuccessListener<QuerySnapshot> = OnSuccessListener { result->
         for (document in result) {
             val imageName = document.get("name") as String
+            imageNames.add(imageName)
             displayImageInGallery(imageName)
 
         }
@@ -403,17 +423,48 @@ class StoryActivity : AppCompatActivity() {
 
     fun displayImageInGallery(imageName: String?) {
         if (imageName != null) {
-            Log.w(TAG, "imageName: $imageName")
-            var imageView = ImageView(this@StoryActivity)
-            imageView.setBackground(getDrawable(R.drawable.dotted))
-            var params = LinearLayout.LayoutParams(150, 150)
+
+            val actualImage = ImageView(this@StoryActivity)
+            val deleteImage = ImageView(this@StoryActivity)
+            var params = LinearLayout.LayoutParams(240, 240)
             params.setMargins(0,0,15,0)
-            imageView.layoutParams = params
+            actualImage.layoutParams = params
 
             val id = View.generateViewId()
             Log.w(TAG, "id: $id")
-            imageView.setId(id)
-            ll_imageGallery?.addView(imageView, 0)
+            actualImage.setId(id)
+
+            if (state != ActivityState.display) {
+                val frameLayout = FrameLayout(this@StoryActivity)
+
+                frameLayout.layoutParams = FrameLayout.LayoutParams(WRAP_CONTENT, MATCH_PARENT)
+                actualImage.setBackground(getDrawable(R.drawable.dotted))
+                val deleteDrawable = getDrawable(R.drawable.ic_delete_black_24dp)
+
+
+                deleteImage.setImageDrawable(deleteDrawable)
+                DrawableCompat.setTint(deleteImage.drawable, ContextCompat.getColor(this, R.color.zomato_red))
+                deleteImage.setOnClickListener(deleteImageClickListener())
+                val deleteLayoutParams = FrameLayout.LayoutParams(50, 50)
+                deleteLayoutParams.gravity = Gravity.END
+                deleteLayoutParams.bottomMargin = 0
+                deleteLayoutParams.topMargin = 0
+                deleteLayoutParams.marginStart = 0
+                deleteLayoutParams.marginEnd = 0
+                deleteImage.layoutParams = deleteLayoutParams
+                frameLayout.addView(actualImage, 0)
+                frameLayout.addView(deleteImage, 1)
+                ll_imageGallery?.addView(frameLayout, 0)
+
+            }
+
+            if (state == ActivityState.display) {
+                ll_imageGallery?.addView(actualImage, 0)
+            }
+
+
+
+            Log.w(TAG, "imageName: $imageName")
             val imageRef = storage.reference.child(imageName)
             val findView = findViewById<ImageView>(id)
             findView.setOnClickListener(displayLargeImage())
@@ -441,6 +492,40 @@ class StoryActivity : AppCompatActivity() {
             intent.putExtra(ARG_IMAGEREF, index)
             startActivity(intent)
         }
+    }
+
+    private fun deleteImageClickListener(): View.OnClickListener = View.OnClickListener { view->
+        createAlertForDeletingImage(view)
+    }
+
+    private fun confirmYesDeleteImage(view: View) {
+        val ll: LinearLayout = view.parent.parent as LinearLayout
+        val index = ll.indexOfChild(view.parent as View)
+        ll.removeViewAt(index)
+        if (state == ActivityState.new) {
+
+            imagePhotoNameArray.removeAt(index)
+            imagePhotoPathArray.removeAt(index)
+
+            //deleteImageFromStorage(imageNames[index])
+
+        } else if (state == ActivityState.edit) {
+            Log.d(TAG, "imageName: ${imageNames.get(index)}")
+            deleteImageFromStorage(imageNames.get(index))
+        }
+    }
+    private fun createAlertForDeletingImage(view : View) {
+        val items = arrayOf<CharSequence>(getString(R.string.yes), getString(R.string.no))
+        val builder = AlertDialog.Builder(this@StoryActivity)
+        builder.setTitle("Are you sure you want to delete image?")
+        builder.setItems(items) { dialog, item ->
+            if (items[item] == getString(R.string.yes)) {
+                confirmYesDeleteImage(view)
+            } else if (items[item] == getString(R.string.no)){
+                dialog.dismiss()
+            }
+        }
+        builder.show()
     }
 
     private fun createAlertForDeletingNote() {
@@ -508,25 +593,50 @@ class StoryActivity : AppCompatActivity() {
 
     private var imgDecodableString: String? = ""
 
+    fun placeImageInContainerAfterCapture(file: String) {
+
+        val frameLayout = FrameLayout(this@StoryActivity)
+        frameLayout.layoutParams = FrameLayout.LayoutParams(WRAP_CONTENT, MATCH_PARENT)
+
+        val actualImage = ImageView(this@StoryActivity)
+        val deleteImage = ImageView(this@StoryActivity)
+
+        actualImage.setImageBitmap(BitmapFactory.decodeFile(file))
+        actualImage.layoutParams = ViewGroup.LayoutParams(240,240)
+        actualImage.setBackground(getDrawable(R.drawable.dotted))
+        val deleteDrawable = getDrawable(R.drawable.ic_delete_black_24dp)
+
+        deleteImage.setOnClickListener(deleteImageClickListener())
+        deleteImage.setImageDrawable(deleteDrawable)
+        DrawableCompat.setTint(deleteImage.drawable, ContextCompat.getColor(this, R.color.zomato_red))
+        val deleteLayoutParams = FrameLayout.LayoutParams(50, 50)
+        deleteLayoutParams.gravity = Gravity.END
+        deleteLayoutParams.bottomMargin = 0
+        deleteLayoutParams.topMargin = 0
+        deleteLayoutParams.marginStart = 0
+        deleteLayoutParams.marginEnd = 0
+        deleteImage.layoutParams = deleteLayoutParams
+        frameLayout.addView(actualImage, 0)
+        frameLayout.addView(deleteImage, 1)
+
+        ll_imageGallery?.addView(frameLayout, 0)
+
+
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
 		super.onActivityResult(requestCode, resultCode, data)
 		try {
             if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
-                val imageView = ImageView(this@StoryActivity)
-
-                // Set the Image in ImageView after decoding the String
-                imageView.setImageBitmap(BitmapFactory
-                    .decodeFile(mCurrentPhotoPath))
-                Log.w(TAG, "takePicture: path: ${mCurrentPhotoPath}")
-                imageView.layoutParams = ViewGroup.LayoutParams(240, 240)
-                imageView.setBackground(getDrawable(R.drawable.dotted))
-                ll_imageGallery?.addView(imageView, 0)
+                placeImageInContainerAfterCapture(mCurrentPhotoPath)
                 if (state == ActivityState.new) {
                     imagePhotoPathArray.add(mCurrentPhotoPath)
                     imagePhotoNameArray.add(mCurrentPhotoName)
                     Log.w(TAG, "takePicture: path: ${imagePhotoPathArray[imagePhotoPathArray.size -1]}")
                 } else {
-                    storeImageOnFirebaseStorage(mCurrentPhotoPath, null)
+                    val imageName = generateImageName()
+                    imageNames.add(imageName)
+                    storeImageOnFirebaseStorage(mCurrentPhotoPath, imageName)
                 }
 
 
@@ -552,18 +662,13 @@ class StoryActivity : AppCompatActivity() {
 				imgDecodableString = cursor.getString(columnIndex)
                 Log.w(TAG, imgDecodableString)
 				cursor.close()
-                val imageView = ImageView(this@StoryActivity)
-
-                // Set the Image in ImageView after decoding the String
-                imageView.setImageBitmap(BitmapFactory
-                    .decodeFile(imgDecodableString))
-                imageView.layoutParams = ViewGroup.LayoutParams(240, 240)
-                imageView.setBackground(getDrawable(R.drawable.dotted))
-                ll_imageGallery?.addView(imageView, 0)
+                placeImageInContainerAfterCapture(imgDecodableString!!)
                 if (state==ActivityState.new) {
                     imagePhotoPathArray.add(imgDecodableString!!)
                 } else {
-                    storeImageOnFirebaseStorage(imgDecodableString, null)
+                    val imageName = generateImageName()
+                    imageNames.add(imageName)
+                    storeImageOnFirebaseStorage(imgDecodableString, imageName)
                 }
 
 			} else {
