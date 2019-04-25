@@ -235,7 +235,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapCli
         navView = findViewById(R.id.nav_view)
         flAddNote = findViewById(R.id.flAddNote)
         flAddNote.setOnClickListener { view->
-
+            if (mLastShownInfoWindowMarker != null && mLastShownInfoWindowMarker!!.isInfoWindowShown) {
+                mLastShownInfoWindowMarker!!.hideInfoWindow()
+                mLastShownInfoWindowMarker = null
+            }
             Toast.makeText(this@MapsActivity, "Click on map to create note", Toast.LENGTH_SHORT).show()
             settingNote = true
 
